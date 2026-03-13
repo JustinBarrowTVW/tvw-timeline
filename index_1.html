@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TVW 2026 Production Timeline</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: #fff; color: #0f172a; }
+    #app { min-width: 1820px; }
+    #topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #0f172a; color: #fff; position: sticky; top: 0; z-index: 200; border-bottom: 1px solid #1e293b; }
+    #title-area { display: flex; align-items: center; gap: 18px; }
+    #title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+    #today-badge { display: flex; align-items: center; gap: 6px; background: #1e293b; border-radius: 20px; padding: 3px 10px; font-size: 11px; color: #94a3b8; }
+    #today-badge strong { color: #fca5a5; }
+    #today-dot { width: 7px; height: 7px; background: #dc2626; border-radius: 50%; }
+    #filters { display: flex; gap: 6px; }
+    .filter-btn { padding: 4px 14px; border-radius: 20px; border: 1px solid #334155; background: transparent; color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; letter-spacing: 0.2px; }
+    .filter-btn:hover { background: #1e293b; color: #fff; }
+    .filter-btn.active { background: #fff; color: #0f172a; border-color: #fff; }
+    #legend { display: flex; align-items: center; gap: 18px; padding: 7px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #64748b; flex-wrap: wrap; }
+    #legend span.label { font-weight: 700; color: #334155; }
+    .leg-item { display: flex; align-items: center; gap: 5px; }
+    .leg-swatch { width: 22px; height: 10px; border-radius: 2px; }
+    .leg-diamond-wrap { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; }
+    .leg-diamond { width: 9px; height: 9px; background: #dc2626; transform: rotate(45deg); border: 1.5px solid #fff; box-shadow: 0 0 0 1px #dc2626; }
+    .leg-today-line { width: 22px; border-top: 2px dashed #dc2626; opacity: 0.7; }
+    #timeline-container { overflow-x: auto; overflow-y: auto; }
+    #gantt-svg { display: block; }
+    #tooltip { display: none; position: fixed; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 12px; max-width: 290px; min-width: 220px; z-index: 9999; box-shadow: 0 8px 30px rgba(0,0,0,0.12); pointer-events: none; }
+    .tt-header { margin-bottom: 6px; }
+    .tt-id { display: inline-block; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #64748b; margin-right: 5px; }
+    .tt-name { font-size: 13px; font-weight: 700; color: #0f172a; }
+    .tt-meta { font-size: 11px; color: #64748b; margin-bottom: 6px; }
+    .tt-show { font-size: 11px; color: #dc2626; font-weight: 700; margin-bottom: 5px; }
+    .tt-team { font-size: 11px; color: #475569; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
+    .tt-phases > div { display: flex; justify-content: space-between; gap: 12px; font-size: 10.5px; color: #64748b; padding: 2px 0; }
+    .tt-phases > div span:first-child { font-weight: 600; color: #334155; min-width: 80px; }
+    .tt-brief { font-size: 10.5px; color: #94a3b8; font-style: italic; border-top: 1px solid #f1f5f9; padding-top: 6px; margin-top: 6px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div id="title-area">
+      <span id="title">TVW 2026 Production Timeline</span>
+      <div id="today-badge"><div id="today-dot"></div><span>Today: <strong id="today-str"></strong></span></div>
+    </div>
+    <div id="filters">
+      <button class="filter-btn active" data-group="All">All</button>
+      <button class="filter-btn" data-group="Leidos">Leidos</button>
+      <button class="filter-btn" data-group="Husky">Husky</button>
+      <button class="filter-btn" data-group="TVW Network">TVW Network</button>
+    </div>
+  </div>
+  <div id="legend">
+    <span class="label">Phase:</span>
+    <div class="leg-item"><div class="leg-swatch" style="background:linear-gradient(to right,#bfdbfe,#1d4ed8)"></div><span>Discovery to Delivery (light to dark)</span></div>
+    <span class="label" style="margin-left:8px">Markers:</span>
+    <div class="leg-item"><div class="leg-diamond-wrap"><div class="leg-diamond"></div></div><span>Event / Show Date</span></div>
+    <div class="leg-item"><div class="leg-today-line"></div><span>Today</span></div>
+    <span style="margin-left:8px;color:#94a3b8">Hover any bar for details</span>
+  </div>
+  <div id="timeline-container"><svg id="gantt-svg"></svg></div>
+  <div id="tooltip"></div>
+</div>
+
+<script>
+// ── DATA ── Edit this object to update the timeline ──────────
+const PROJECT_DATA = [
+  { id:"242",    group:"Leidos",       name:"AIMUS / HMSS - Sales Tool Update",          type:"Web",                    location:"Las Vegas, NV",        startDate:"2026-03-01", endDate:"2026-03-12", showDate:"2026-03-12", pm:"Wheeler",            cd:"Shawn",        brief:"3D map updates, 2D/3mm re-do, LX/UI update" },
+  { id:"251",    group:"Leidos",       name:"HMSS - Sales Tool Demo Add-ons",             type:"Web",                    location:"Las Vegas, NV",        startDate:"2026-03-01", endDate:"2026-03-10", showDate:"2026-03-10", pm:"Wheeler",            cd:"Shawn",        brief:"2 new use case clickthroughs (ie. Mattermost)" },
+  { id:"263",    group:"Leidos",       name:"MDO - Sea Air Space 2026 Updates",           type:"XR / Tradeshow",         location:"National Harbor, MD",  startDate:"2026-03-01", endDate:"2026-04-20", showDate:"2026-04-20", pm:"Justin",             cd:"Shawn",        brief:"MDO content updates + Pillar content + mission mode" },
+  { id:"264",    group:"Leidos",       name:"MDO CLD - Space Symposium Updates",          type:"XR / Tradeshow",         location:"Colorado Springs, CO", startDate:"2026-03-01", endDate:"2026-04-13", showDate:"2026-04-13", pm:"Justin",             cd:"Shawn",        brief:"Updating MDO and CLD platform for Space Symposium (DSS, DigiMod)" },
+  { id:"252",    group:"Leidos",       name:"AI Astronaut - Space Symposium",             type:"XR / Tradeshow",         location:"Colorado Springs, CO", startDate:"2026-03-01", endDate:"2026-04-13", showDate:"2026-04-13", pm:"Justin",             cd:"Shawn",        brief:"Developing the front of Leidos platform with the Moon-to-Mars Astronaut" },
+  { id:"TBD-SS", group:"Leidos",       name:"Space Symposium - TBD",                     type:"XR / Tradeshow",         location:"Colorado Springs, CO", startDate:"2026-03-01", endDate:"2026-04-13", showDate:"2026-04-13", pm:"Justin",             cd:"Shawn",        brief:"TBD scope for Space Symposium activation" },
+  { id:"254",    group:"Leidos",       name:"FAA Pillar - Updates",                       type:"Pillars / Tradeshow",    location:"Portugal",             startDate:"2026-03-01", endDate:"2026-05-26", showDate:"2026-05-26", pm:"Kristin",            cd:"Shawn",        brief:"Reusing FAA Demo and Graphics for tradeshow application" },
+  { id:"244",    group:"Husky",        name:"Husky - Robot HQ",                           type:"Strategy / XR",          location:"Bolton, Ontario, CAN", startDate:"2026-03-01", endDate:"2026-04-15", showDate:"2026-04-15", pm:"Kristin, Jay",       cd:"Cole, Helen",  brief:"Developing a Husky version of Robot HQ" },
+  { id:"NRST",   group:"Husky",        name:"Husky - NRST Platform",                     type:"Web / XR",               location:"Bolton, Ontario, CAN", startDate:"2026-03-01", endDate:"2026-06-30", showDate:null,          pm:"Kristin, Jay",       cd:"Cole, Helen",  brief:"NRST platform development - TBD" },
+  { id:"LUX",    group:"Husky",        name:"Husky - Lux HQ",                            type:"Web / XR",               location:"Luxembourg",           startDate:"2026-03-01", endDate:"2026-08-01", showDate:null,          pm:"Kristin, Jay",       cd:"Cole, Helen",  brief:"Developing a Husky version of MDO - scope TBD" },
+  { id:"258",    group:"Husky",        name:"Husky - ChinaPlus",                         type:"XR / Tradeshow",         location:"Shanghai, China",      startDate:"2026-03-01", endDate:"2026-04-21", showDate:"2026-04-21", pm:"Wheeler",            cd:"Shawn",        brief:"ChinaPlus tradeshow activation in Shanghai" },
+  { id:"231",    group:"TVW Network",  name:"Mattermost - Interactive Website",           type:"Web",                    location:"N/A",                  startDate:"2026-03-01", endDate:"2026-03-31", showDate:null,          pm:"Wheeler",            cd:"David",        brief:"Content needs for the LED wall - wrap-up ongoing" },
+  { id:"EL",     group:"TVW Network",  name:"Exhibitor Live - TVW Reach",                type:"XR / Tradeshow",         location:"Tampa, FL",            startDate:"2026-03-01", endDate:"2026-03-29", showDate:"2026-03-29", pm:"Kristin, Justin",    cd:"",             brief:"TVW Reach activation at Exhibitor Live" },
+  { id:"278",    group:"TVW Network",  name:"Sienus - Purple Palace Discovery",          type:"Discovery / Tech Planning", location:"N/A",               startDate:"2026-03-01", endDate:"2026-06-01", showDate:null,          pm:"Kristin, Justin, Jay", cd:"Cole, Helen", brief:"Working with Leidos CX on interactive process and initiatives" },
+  { id:"240",    group:"TVW Network",  name:"Marquis Exhibits - Sensata Touchscreen",    type:"XR / Tradeshow",         location:"Attleboro, MA",        startDate:"2026-03-01", endDate:"2026-03-31", showDate:"2026-03-31", pm:"Justin",             cd:"Shawn",        brief:"Touchscreen experience highlighting the 400v & 800v EV" },
+  { id:"LMF",    group:"TVW Network",  name:"Lockheed Martin - AUSA Global Force",       type:"XR / Tradeshow",         location:"Huntsville, AL",       startDate:"2026-03-01", endDate:"2026-03-24", showDate:"2026-03-24", pm:"Justin",             cd:"Shawn",        brief:"Radar interactive setup + smaller touch kiosk support" },
+  { id:"255",    group:"TVW Network",  name:"River Legacy - Interactive Floor Ph.1",     type:"Museum / Exhibit",       location:"Dallas, TX",           startDate:"2026-03-01", endDate:"2026-05-20", showDate:"2026-05-20", pm:"Wheeler, Justin",    cd:"Cole",         brief:"Interactive floor exhibit - Phase 1" }
+];
+
+// ── CONSTANTS ────────────────────────────────────────────────
+const SIDEBAR_W = 228, ROW_H = 54, GROUP_H = 38, MONTH_H = 38, CHART_W = 1580, BAR_PAD = 9;
+const YEAR_START = new Date('2026-01-01T00:00:00');
+const YEAR_END   = new Date('2027-01-01T00:00:00');
+const TODAY      = new Date();
+const xScale     = d3.scaleTime().domain([YEAR_START, YEAR_END]).range([0, CHART_W]);
+const GROUPS     = ['Leidos', 'Husky', 'TVW Network'];
+const PHASE_NAMES   = ['Discovery', 'Design', 'Development', 'QA', 'Delivery'];
+const PHASE_WEIGHTS = [0.15, 0.20, 0.40, 0.15, 0.10];
+
+const G = {
+  'Leidos':      { phases:['#bfdbfe','#93c5fd','#60a5fa','#2563eb','#1d4ed8'], base:'#2563eb', headerBg:'#eff6ff', headerText:'#1e3a8a', accent:'#2563eb' },
+  'Husky':       { phases:['#a7f3d0','#6ee7b7','#34d399','#059669','#047857'], base:'#059669', headerBg:'#ecfdf5', headerText:'#064e3b', accent:'#059669' },
+  'TVW Network': { phases:['#ddd6fe','#c4b5fd','#a78bfa','#7c3aed','#6d28d9'], base:'#7c3aed', headerBg:'#f5f3ff', headerText:'#4c1d95', accent:'#7c3aed' }
+};
+
+// ── HELPERS ──────────────────────────────────────────────────
+const parseDate = s => new Date(s + 'T00:00:00');
+const fmtDate   = d => d3.timeFormat('%b %d')(d);
+const trunc     = (s, n) => s.length > n ? s.slice(0, n - 1) + '...' : s;
+
+function autoPhases(startDate, endDate) {
+  const start = parseDate(startDate), end = parseDate(endDate);
+  const totalMs = end - start;
+  const phases = [];
+  let cursor = new Date(start);
+  PHASE_WEIGHTS.forEach((w, i) => {
+    const isLast = i === PHASE_WEIGHTS.length - 1;
+    const pEnd = isLast ? new Date(end) : new Date(cursor.getTime() + totalMs * w);
+    phases.push({ name: PHASE_NAMES[i], start: new Date(cursor), end: pEnd });
+    cursor = new Date(pEnd);
+  });
+  return phases;
+}
+
+// ── LAYOUT ───────────────────────────────────────────────────
+function buildLayout(data, filter) {
+  let y = 0, projIdx = 0;
+  const rows = [];
+  GROUPS.forEach(group => {
+    if (filter !== 'All' && filter !== group) return;
+    rows.push({ type: 'group', group, y }); y += GROUP_H;
+    data.filter(p => p.group === group).forEach(project => {
+      rows.push({ type: 'project', project, group, y, projIdx: projIdx++ }); y += ROW_H;
+    });
+  });
+  return { rows, totalHeight: y };
+}
+
+// ── RENDER ───────────────────────────────────────────────────
+function render(data, filter) {
+  const { rows, totalHeight } = buildLayout(data, filter);
+  const totalW = SIDEBAR_W + CHART_W, totalH = MONTH_H + totalHeight;
+  const svg = d3.select('#gantt-svg').attr('width', totalW).attr('height', totalH);
+  svg.selectAll('*').remove();
+  const defs = svg.append('defs');
+
+  svg.append('rect').attr('width', totalW).attr('height', totalH).attr('fill', '#fff');
+  svg.append('rect').attr('width', SIDEBAR_W).attr('height', totalH).attr('fill', '#f8fafc');
+  svg.append('line').attr('x1', SIDEBAR_W).attr('x2', SIDEBAR_W).attr('y1', 0).attr('y2', totalH).attr('stroke', '#e2e8f0').attr('stroke-width', 1);
+  svg.append('rect').attr('width', totalW).attr('height', MONTH_H).attr('fill', '#0f172a');
+  svg.append('text').attr('x', 14).attr('y', MONTH_H / 2).attr('dy', '0.35em').attr('font-size', '10px').attr('font-weight', '700').attr('fill', '#475569').attr('letter-spacing', '0.8px').text('PROJECT');
+
+  const months = d3.timeMonths(YEAR_START, YEAR_END);
+  const monthW = CHART_W / 12;
+  months.forEach(month => {
+    const x = SIDEBAR_W + xScale(month);
+    svg.append('line').attr('x1', x).attr('x2', x).attr('y1', MONTH_H).attr('y2', totalH).attr('stroke', '#e2e8f0').attr('stroke-width', 1);
+    svg.append('text').attr('x', x + monthW / 2).attr('y', MONTH_H / 2).attr('dy', '0.35em').attr('text-anchor', 'middle').attr('font-size', '11px').attr('font-weight', '600').attr('fill', '#94a3b8').text(d3.timeFormat('%b')(month));
+  });
+  svg.append('line').attr('x1', totalW - 1).attr('x2', totalW - 1).attr('y1', MONTH_H).attr('y2', totalH).attr('stroke', '#e2e8f0').attr('stroke-width', 1);
+
+  rows.forEach(row => {
+    const absY = MONTH_H + row.y;
+    if (row.type === 'group') drawGroupHeader(svg, row.group, absY, totalW);
+    else drawProjectRow(svg, row.project, row.group, absY, row.projIdx, defs);
+  });
+
+  const todayX = SIDEBAR_W + xScale(TODAY);
+  svg.append('rect').attr('x', todayX - 24).attr('y', 0).attr('width', 48).attr('height', MONTH_H).attr('fill', '#dc2626').attr('opacity', 0.12);
+  svg.append('text').attr('x', todayX).attr('y', MONTH_H / 2).attr('dy', '0.35em').attr('text-anchor', 'middle').attr('font-size', '9px').attr('font-weight', '800').attr('fill', '#fca5a5').attr('letter-spacing', '0.5px').text('TODAY');
+  svg.append('line').attr('x1', todayX).attr('x2', todayX).attr('y1', MONTH_H).attr('y2', totalH).attr('stroke', '#dc2626').attr('stroke-width', 1.5).attr('stroke-dasharray', '5,3').attr('opacity', 0.65);
+}
+
+// ── GROUP HEADER ─────────────────────────────────────────────
+function drawGroupHeader(svg, group, absY, totalW) {
+  const c = G[group];
+  svg.append('rect').attr('x', 0).attr('y', absY).attr('width', totalW).attr('height', GROUP_H).attr('fill', c.headerBg);
+  svg.append('rect').attr('x', 0).attr('y', absY).attr('width', 4).attr('height', GROUP_H).attr('fill', c.accent);
+  svg.append('line').attr('x1', 0).attr('x2', totalW).attr('y1', absY).attr('y2', absY).attr('stroke', c.accent).attr('stroke-width', 0.5).attr('opacity', 0.4);
+  svg.append('line').attr('x1', 0).attr('x2', totalW).attr('y1', absY + GROUP_H).attr('y2', absY + GROUP_H).attr('stroke', c.accent).attr('stroke-width', 0.5).attr('opacity', 0.4);
+  svg.append('text').attr('x', 16).attr('y', absY + GROUP_H / 2).attr('dy', '0.35em').attr('font-size', '11px').attr('font-weight', '800').attr('fill', c.headerText).attr('letter-spacing', '0.5px').text(group.toUpperCase());
+}
+
+// ── PROJECT ROW ──────────────────────────────────────────────
+function drawProjectRow(svg, project, group, absY, projIdx, defs) {
+  const c = G[group], totalW = SIDEBAR_W + CHART_W;
+  if (projIdx % 2 === 0) svg.append('rect').attr('x', 0).attr('y', absY).attr('width', totalW).attr('height', ROW_H).attr('fill', '#f8fafc').attr('opacity', 0.6);
+  svg.append('line').attr('x1', 0).attr('x2', totalW).attr('y1', absY + ROW_H).attr('y2', absY + ROW_H).attr('stroke', '#e2e8f0').attr('stroke-width', 0.5);
+  svg.append('text').attr('x', 14).attr('y', absY + 17).attr('dy', '0.35em').attr('font-size', '11px').attr('font-weight', '600').attr('fill', '#0f172a').text(trunc(project.name, 28));
+  svg.append('text').attr('x', 14).attr('y', absY + 36).attr('dy', '0.35em').attr('font-size', '10px').attr('fill', '#94a3b8').text('PM: ' + trunc(project.pm, 22));
+
+  const startD = parseDate(project.startDate), endD = parseDate(project.endDate);
+  const barX = SIDEBAR_W + xScale(startD), barW = Math.max(xScale(endD) - xScale(startD), 2);
+  const barY = absY + BAR_PAD, barH = ROW_H - BAR_PAD * 2;
+
+  const clipId = 'cp_' + project.id.replace(/[^a-z0-9]/gi, '_');
+  defs.append('clipPath').attr('id', clipId).append('rect').attr('x', barX).attr('y', barY).attr('width', barW).attr('height', barH).attr('rx', 5).attr('ry', 5);
+
+  const phases = autoPhases(project.startDate, project.endDate);
+  const phaseGrp = svg.append('g').attr('clip-path', `url(#${clipId})`);
+  phases.forEach((phase, i) => {
+    const px = SIDEBAR_W + xScale(phase.start), pw = xScale(phase.end) - xScale(phase.start);
+    if (pw <= 0) return;
+    phaseGrp.append('rect').attr('x', px).attr('y', barY).attr('width', pw).attr('height', barH).attr('fill', c.phases[i]);
+  });
+
+  let cur = new Date(startD);
+  const totMs = endD - startD;
+  PHASE_WEIGHTS.forEach((w, i) => {
+    if (i === PHASE_WEIGHTS.length - 1) return;
+    cur = new Date(cur.getTime() + totMs * w);
+    const lx = SIDEBAR_W + xScale(cur);
+    phaseGrp.append('line').attr('x1', lx).attr('x2', lx).attr('y1', barY).attr('y2', barY + barH).attr('stroke', 'rgba(255,255,255,0.3)').attr('stroke-width', 1);
+  });
+
+  if (barW > 36) svg.append('text').attr('x', barX + 7).attr('y', absY + ROW_H / 2).attr('dy', '0.35em').attr('font-size', '9.5px').attr('font-weight', '700').attr('fill', 'rgba(255,255,255,0.8)').attr('pointer-events', 'none').text(project.id);
+
+  if (project.showDate) {
+    const sdD = parseDate(project.showDate);
+    if (sdD >= startD && sdD <= endD) {
+      const sdX = SIDEBAR_W + xScale(sdD), sdY = absY + ROW_H / 2, ds = 6;
+      svg.append('polygon').attr('points', `${sdX},${sdY-ds} ${sdX+ds},${sdY} ${sdX},${sdY+ds} ${sdX-ds},${sdY}`).attr('fill', '#dc2626').attr('stroke', '#fff').attr('stroke-width', 1.5).attr('pointer-events', 'none');
+    }
+  }
+
+  const tooltip = d3.select('#tooltip');
+  const hitRect = svg.append('rect').attr('x', barX).attr('y', absY).attr('width', barW).attr('height', ROW_H).attr('fill', 'transparent').attr('cursor', 'crosshair');
+
+  hitRect.on('mouseenter', () => {
+    svg.append('rect').attr('class', 'hover-ring').attr('x', barX - 1).attr('y', barY - 1).attr('width', barW + 2).attr('height', barH + 2).attr('fill', 'none').attr('stroke', c.base).attr('stroke-width', 2).attr('rx', 6).attr('pointer-events', 'none').attr('opacity', 0.85);
+  });
+  hitRect.on('mouseleave', () => {
+    svg.selectAll('.hover-ring').remove();
+    tooltip.style('display', 'none');
+  });
+  hitRect.on('mousemove', function(event) {
+    const phasesForTT = autoPhases(project.startDate, project.endDate);
+    const phaseRows = phasesForTT.map(p => `<div><span>${p.name}</span><span>${fmtDate(p.start)} - ${fmtDate(p.end)}</span></div>`).join('');
+    const showLine = project.showDate ? `<div class="tt-show">Event: ${fmtDate(parseDate(project.showDate))}</div>` : '';
+    const cdLine = project.cd ? ` &nbsp;&middot;&nbsp; CD: ${project.cd}` : '';
+    tooltip.style('display', 'block').style('left', (event.clientX + 16) + 'px').style('top', (event.clientY - 12) + 'px')
+      .html(`<div class="tt-header"><span class="tt-id">${project.id}</span><span class="tt-name">${project.name}</span></div><div class="tt-meta">${project.type} &nbsp;&middot;&nbsp; ${project.location}</div>${showLine}<div class="tt-team">PM: ${project.pm}${cdLine}</div><div class="tt-phases">${phaseRows}</div>${project.brief ? `<div class="tt-brief">${project.brief}</div>` : ''}`);
+    const ttRect = document.getElementById('tooltip').getBoundingClientRect();
+    if (ttRect.right > window.innerWidth - 10) tooltip.style('left', (event.clientX - ttRect.width - 16) + 'px');
+  });
+}
+
+// ── FILTERS ──────────────────────────────────────────────────
+let activeFilter = 'All';
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.group;
+    render(PROJECT_DATA, activeFilter);
+  });
+});
+
+// ── INIT ─────────────────────────────────────────────────────
+document.getElementById('today-str').textContent = d3.timeFormat('%B %d, %Y')(TODAY);
+render(PROJECT_DATA, activeFilter);
+</script>
+</body>
+</html>
