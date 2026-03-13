@@ -3,49 +3,73 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TVW 2026 Production Timeline</title>
+  <title>TVW 2026 Master Timeline</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: #fff; color: #0f172a; }
     #app { min-width: 1820px; }
-    #topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #0f172a; color: #fff; position: sticky; top: 0; z-index: 200; border-bottom: 1px solid #1e293b; }
-    #title-area { display: flex; align-items: center; gap: 18px; }
-    #title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
-    #today-badge { display: flex; align-items: center; gap: 6px; background: #1e293b; border-radius: 20px; padding: 3px 10px; font-size: 11px; color: #94a3b8; }
+    #topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #0f172a; color: #fff; position: sticky; top: 0; z-index: 200; border-bottom: 1px solid #1e293b; gap: 12px; flex-wrap: wrap; }
+    #title-area { display: flex; align-items: center; gap: 12px; }
+    #title { font-size: 14px; font-weight: 700; }
+    #today-badge { display: flex; align-items: center; gap: 6px; background: #1e293b; border-radius: 20px; padding: 3px 10px; font-size: 11px; color: #94a3b8; white-space: nowrap; }
     #today-badge strong { color: #fca5a5; }
     #today-dot { width: 7px; height: 7px; background: #dc2626; border-radius: 50%; }
+    #sync-badge { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #64748b; }
+    #sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+    #sync-dot.stale { background: #f59e0b; } #sync-dot.error { background: #ef4444; }
+    #refresh-btn { background: none; border: 1px solid #334155; color: #64748b; font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+    #refresh-btn:hover { background: #1e293b; color: #fff; }
     #filters { display: flex; gap: 6px; }
-    .filter-btn { padding: 4px 14px; border-radius: 20px; border: 1px solid #334155; background: transparent; color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; letter-spacing: 0.2px; }
+    .filter-btn { padding: 4px 14px; border-radius: 20px; border: 1px solid #334155; background: transparent; color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
     .filter-btn:hover { background: #1e293b; color: #fff; }
     .filter-btn.active { background: #fff; color: #0f172a; border-color: #fff; }
-    #legend { display: flex; align-items: center; gap: 18px; padding: 7px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #64748b; flex-wrap: wrap; }
+    #legend { display: flex; align-items: center; gap: 16px; padding: 7px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #64748b; flex-wrap: wrap; }
     #legend span.label { font-weight: 700; color: #334155; }
     .leg-item { display: flex; align-items: center; gap: 5px; }
     .leg-swatch { width: 22px; height: 10px; border-radius: 2px; }
     .leg-diamond-wrap { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; }
     .leg-diamond { width: 9px; height: 9px; background: #dc2626; transform: rotate(45deg); border: 1.5px solid #fff; box-shadow: 0 0 0 1px #dc2626; }
     .leg-today-line { width: 22px; border-top: 2px dashed #dc2626; opacity: 0.7; }
+    .leg-hold-swatch { width: 22px; height: 10px; border-radius: 2px; background: repeating-linear-gradient(45deg,#94a3b8 0px,#94a3b8 2px,#cbd5e1 2px,#cbd5e1 6px); }
+    .leg-done-swatch { width: 22px; height: 10px; border-radius: 2px; background: #e2e8f0; }
+    .leg-priority { width: 8px; height: 8px; background: #dc2626; border-radius: 50%; }
     #timeline-container { overflow-x: auto; overflow-y: auto; }
     #gantt-svg { display: block; }
-    #tooltip { display: none; position: fixed; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 12px; max-width: 290px; min-width: 220px; z-index: 9999; box-shadow: 0 8px 30px rgba(0,0,0,0.12); pointer-events: none; }
+    #loading { display: flex; align-items: center; justify-content: center; height: 220px; font-size: 13px; color: #64748b; gap: 10px; }
+    .spinner { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #error-msg { display: none; padding: 32px 28px; color: #0f172a; font-size: 13px; line-height: 1.9; max-width: 600px; }
+    #error-msg strong { color: #dc2626; }
+    #error-msg code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-family: monospace; }
+    #tooltip { display: none; position: fixed; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 12px; max-width: 300px; min-width: 230px; z-index: 9999; box-shadow: 0 8px 30px rgba(0,0,0,0.12); pointer-events: none; }
     .tt-header { margin-bottom: 6px; }
-    .tt-id { display: inline-block; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #64748b; margin-right: 5px; }
+    .tt-id { display: inline-block; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #64748b; margin-right: 4px; }
     .tt-name { font-size: 13px; font-weight: 700; color: #0f172a; }
-    .tt-meta { font-size: 11px; color: #64748b; margin-bottom: 6px; }
+    .tt-meta { font-size: 11px; color: #64748b; margin-bottom: 5px; }
     .tt-show { font-size: 11px; color: #dc2626; font-weight: 700; margin-bottom: 5px; }
+    .tt-status { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-bottom: 6px; }
+    .tt-status.active { background: #dcfce7; color: #166534; }
+    .tt-status.complete { background: #f1f5f9; color: #475569; }
+    .tt-status.on-hold { background: #fef9c3; color: #854d0e; }
     .tt-team { font-size: 11px; color: #475569; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
-    .tt-phases > div { display: flex; justify-content: space-between; gap: 12px; font-size: 10.5px; color: #64748b; padding: 2px 0; }
+    .tt-phases > div { display: flex; justify-content: space-between; gap: 10px; font-size: 10.5px; color: #64748b; padding: 2px 0; }
     .tt-phases > div span:first-child { font-weight: 600; color: #334155; min-width: 80px; }
     .tt-brief { font-size: 10.5px; color: #94a3b8; font-style: italic; border-top: 1px solid #f1f5f9; padding-top: 6px; margin-top: 6px; line-height: 1.4; }
+    .tt-notes { font-size: 10.5px; color: #dc2626; border-top: 1px solid #f1f5f9; padding-top: 6px; margin-top: 4px; line-height: 1.4; font-weight: 600; }
   </style>
 </head>
 <body>
 <div id="app">
   <div id="topbar">
     <div id="title-area">
-      <span id="title">TVW 2026 Production Timeline</span>
+      <span id="title">TVW 2026 Master Timeline</span>
       <div id="today-badge"><div id="today-dot"></div><span>Today: <strong id="today-str"></strong></span></div>
+      <div id="sync-badge">
+        <div id="sync-dot"></div>
+        <span id="sync-time">Loading...</span>
+        <button id="refresh-btn" onclick="loadData()">Refresh</button>
+      </div>
     </div>
     <div id="filters">
       <button class="filter-btn active" data-group="All">All</button>
@@ -56,40 +80,39 @@
   </div>
   <div id="legend">
     <span class="label">Phase:</span>
-    <div class="leg-item"><div class="leg-swatch" style="background:linear-gradient(to right,#bfdbfe,#1d4ed8)"></div><span>Discovery to Delivery (light to dark)</span></div>
+    <div class="leg-item"><div class="leg-swatch" style="background:linear-gradient(to right,#bfdbfe,#1d4ed8)"></div><span>Discovery to Delivery</span></div>
+    <span class="label" style="margin-left:8px">Status:</span>
+    <div class="leg-item"><div class="leg-hold-swatch"></div><span>On Hold</span></div>
+    <div class="leg-item"><div class="leg-done-swatch"></div><span>Complete</span></div>
     <span class="label" style="margin-left:8px">Markers:</span>
-    <div class="leg-item"><div class="leg-diamond-wrap"><div class="leg-diamond"></div></div><span>Event / Show Date</span></div>
+    <div class="leg-item"><div class="leg-diamond-wrap"><div class="leg-diamond"></div></div><span>Event Date</span></div>
     <div class="leg-item"><div class="leg-today-line"></div><span>Today</span></div>
+    <div class="leg-item"><div class="leg-priority"></div><span>High Priority</span></div>
     <span style="margin-left:8px;color:#94a3b8">Hover any bar for details</span>
   </div>
-  <div id="timeline-container"><svg id="gantt-svg"></svg></div>
+  <div id="timeline-container">
+    <div id="loading"><div class="spinner"></div>Loading from Google Sheets...</div>
+    <div id="error-msg"></div>
+    <svg id="gantt-svg" style="display:none"></svg>
+  </div>
   <div id="tooltip"></div>
 </div>
 
 <script>
-// ── DATA ── Edit this object to update the timeline ──────────
-const PROJECT_DATA = [
-  { id:"242",    group:"Leidos",       name:"AIMUS / HMSS - Sales Tool Update",          type:"Web",                    location:"Las Vegas, NV",        startDate:"2026-03-01", endDate:"2026-03-12", showDate:"2026-03-12", pm:"Wheeler",            cd:"Shawn",        brief:"3D map updates, 2D/3mm re-do, LX/UI update" },
-  { id:"251",    group:"Leidos",       name:"HMSS - Sales Tool Demo Add-ons",             type:"Web",                    location:"Las Vegas, NV",        startDate:"2026-03-01", endDate:"2026-03-10", showDate:"2026-03-10", pm:"Wheeler",            cd:"Shawn",        brief:"2 new use case clickthroughs (ie. Mattermost)" },
-  { id:"263",    group:"Leidos",       name:"MDO - Sea Air Space 2026 Updates",           type:"XR / Tradeshow",         location:"National Harbor, MD",  startDate:"2026-03-01", endDate:"2026-04-20", showDate:"2026-04-20", pm:"Justin",             cd:"Shawn",        brief:"MDO content updates + Pillar content + mission mode" },
-  { id:"264",    group:"Leidos",       name:"MDO CLD - Space Symposium Updates",          type:"XR / Tradeshow",         location:"Colorado Springs, CO", startDate:"2026-03-01", endDate:"2026-04-13", showDate:"2026-04-13", pm:"Justin",             cd:"Shawn",        brief:"Updating MDO and CLD platform for Space Symposium (DSS, DigiMod)" },
-  { id:"252",    group:"Leidos",       name:"AI Astronaut - Space Symposium",             type:"XR / Tradeshow",         location:"Colorado Springs, CO", startDate:"2026-03-01", endDate:"2026-04-13", showDate:"2026-04-13", pm:"Justin",             cd:"Shawn",        brief:"Developing the front of Leidos platform with the Moon-to-Mars Astronaut" },
-  { id:"TBD-SS", group:"Leidos",       name:"Space Symposium - TBD",                     type:"XR / Tradeshow",         location:"Colorado Springs, CO", startDate:"2026-03-01", endDate:"2026-04-13", showDate:"2026-04-13", pm:"Justin",             cd:"Shawn",        brief:"TBD scope for Space Symposium activation" },
-  { id:"254",    group:"Leidos",       name:"FAA Pillar - Updates",                       type:"Pillars / Tradeshow",    location:"Portugal",             startDate:"2026-03-01", endDate:"2026-05-26", showDate:"2026-05-26", pm:"Kristin",            cd:"Shawn",        brief:"Reusing FAA Demo and Graphics for tradeshow application" },
-  { id:"244",    group:"Husky",        name:"Husky - Robot HQ",                           type:"Strategy / XR",          location:"Bolton, Ontario, CAN", startDate:"2026-03-01", endDate:"2026-04-15", showDate:"2026-04-15", pm:"Kristin, Jay",       cd:"Cole, Helen",  brief:"Developing a Husky version of Robot HQ" },
-  { id:"NRST",   group:"Husky",        name:"Husky - NRST Platform",                     type:"Web / XR",               location:"Bolton, Ontario, CAN", startDate:"2026-03-01", endDate:"2026-06-30", showDate:null,          pm:"Kristin, Jay",       cd:"Cole, Helen",  brief:"NRST platform development - TBD" },
-  { id:"LUX",    group:"Husky",        name:"Husky - Lux HQ",                            type:"Web / XR",               location:"Luxembourg",           startDate:"2026-03-01", endDate:"2026-08-01", showDate:null,          pm:"Kristin, Jay",       cd:"Cole, Helen",  brief:"Developing a Husky version of MDO - scope TBD" },
-  { id:"258",    group:"Husky",        name:"Husky - ChinaPlus",                         type:"XR / Tradeshow",         location:"Shanghai, China",      startDate:"2026-03-01", endDate:"2026-04-21", showDate:"2026-04-21", pm:"Wheeler",            cd:"Shawn",        brief:"ChinaPlus tradeshow activation in Shanghai" },
-  { id:"231",    group:"TVW Network",  name:"Mattermost - Interactive Website",           type:"Web",                    location:"N/A",                  startDate:"2026-03-01", endDate:"2026-03-31", showDate:null,          pm:"Wheeler",            cd:"David",        brief:"Content needs for the LED wall - wrap-up ongoing" },
-  { id:"EL",     group:"TVW Network",  name:"Exhibitor Live - TVW Reach",                type:"XR / Tradeshow",         location:"Tampa, FL",            startDate:"2026-03-01", endDate:"2026-03-29", showDate:"2026-03-29", pm:"Kristin, Justin",    cd:"",             brief:"TVW Reach activation at Exhibitor Live" },
-  { id:"278",    group:"TVW Network",  name:"Sienus - Purple Palace Discovery",          type:"Discovery / Tech Planning", location:"N/A",               startDate:"2026-03-01", endDate:"2026-06-01", showDate:null,          pm:"Kristin, Justin, Jay", cd:"Cole, Helen", brief:"Working with Leidos CX on interactive process and initiatives" },
-  { id:"240",    group:"TVW Network",  name:"Marquis Exhibits - Sensata Touchscreen",    type:"XR / Tradeshow",         location:"Attleboro, MA",        startDate:"2026-03-01", endDate:"2026-03-31", showDate:"2026-03-31", pm:"Justin",             cd:"Shawn",        brief:"Touchscreen experience highlighting the 400v & 800v EV" },
-  { id:"LMF",    group:"TVW Network",  name:"Lockheed Martin - AUSA Global Force",       type:"XR / Tradeshow",         location:"Huntsville, AL",       startDate:"2026-03-01", endDate:"2026-03-24", showDate:"2026-03-24", pm:"Justin",             cd:"Shawn",        brief:"Radar interactive setup + smaller touch kiosk support" },
-  { id:"255",    group:"TVW Network",  name:"River Legacy - Interactive Floor Ph.1",     type:"Museum / Exhibit",       location:"Dallas, TX",           startDate:"2026-03-01", endDate:"2026-05-20", showDate:"2026-05-20", pm:"Wheeler, Justin",    cd:"Cole",         brief:"Interactive floor exhibit - Phase 1" }
-];
+// ── CONFIG ───────────────────────────────────────────────────
+// After creating your "Master Timeline" tab in the Hot Sheet:
+// 1. Click that tab — look at the URL for #gid=XXXXXXXXXX
+// 2. Replace GID_HERE below with that number
+// 3. Commit the change to GitHub
+
+const PUBLISHED_SHEET_ID = '2PACX-1vTo-MtduMWurA3OF68mLkmoDcA2jfn2TyXgohcOs-8I9FUikDv6tgD9_fC0SHSj5S_HzsOwiCUsKsvH';
+const TAB_GID            = 'GID_HERE'; // <-- replace this
+const AUTO_REFRESH_MIN   = 5;
+
+const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_SHEET_ID}/pub?gid=${TAB_GID}&single=true&output=csv`;
 
 // ── CONSTANTS ────────────────────────────────────────────────
-const SIDEBAR_W = 228, ROW_H = 54, GROUP_H = 38, MONTH_H = 38, CHART_W = 1580, BAR_PAD = 9;
+const SIDEBAR_W = 234, ROW_H = 54, GROUP_H = 38, MONTH_H = 38, CHART_W = 1570, BAR_PAD = 9;
 const YEAR_START = new Date('2026-01-01T00:00:00');
 const YEAR_END   = new Date('2027-01-01T00:00:00');
 const TODAY      = new Date();
@@ -97,6 +120,7 @@ const xScale     = d3.scaleTime().domain([YEAR_START, YEAR_END]).range([0, CHART
 const GROUPS     = ['Leidos', 'Husky', 'TVW Network'];
 const PHASE_NAMES   = ['Discovery', 'Design', 'Development', 'QA', 'Delivery'];
 const PHASE_WEIGHTS = [0.15, 0.20, 0.40, 0.15, 0.10];
+const PHASE_COLS    = [['disc_start','disc_end'],['design_start','design_end'],['dev_start','dev_end'],['qa_start','qa_end'],['del_start','del_end']];
 
 const G = {
   'Leidos':      { phases:['#bfdbfe','#93c5fd','#60a5fa','#2563eb','#1d4ed8'], base:'#2563eb', headerBg:'#eff6ff', headerText:'#1e3a8a', accent:'#2563eb' },
@@ -105,15 +129,15 @@ const G = {
 };
 
 // ── HELPERS ──────────────────────────────────────────────────
-const parseDate = s => new Date(s + 'T00:00:00');
-const fmtDate   = d => d3.timeFormat('%b %d')(d);
-const trunc     = (s, n) => s.length > n ? s.slice(0, n - 1) + '...' : s;
+const parseDate = s => s && s.trim() ? new Date(s.trim() + 'T00:00:00') : null;
+const fmtDate   = d => d ? d3.timeFormat('%b %d')(d) : '';
+const trunc     = (s, n) => s && s.length > n ? s.slice(0, n-1) + '...' : (s || '');
 
 function autoPhases(startDate, endDate) {
   const start = parseDate(startDate), end = parseDate(endDate);
+  if (!start || !end) return [];
   const totalMs = end - start;
-  const phases = [];
-  let cursor = new Date(start);
+  const phases = []; let cursor = new Date(start);
   PHASE_WEIGHTS.forEach((w, i) => {
     const isLast = i === PHASE_WEIGHTS.length - 1;
     const pEnd = isLast ? new Date(end) : new Date(cursor.getTime() + totalMs * w);
@@ -123,16 +147,83 @@ function autoPhases(startDate, endDate) {
   return phases;
 }
 
+function getPhases(project) {
+  const hasPhases = PHASE_COLS.every(([s, e]) => project[s] && project[e] && project[s].trim() && project[e].trim());
+  if (hasPhases) {
+    return PHASE_COLS.map(([s, e], i) => ({ name: PHASE_NAMES[i], start: parseDate(project[s]), end: parseDate(project[e]) }));
+  }
+  return autoPhases(project.startDate, project.endDate);
+}
+
+// ── DATA LOADING ─────────────────────────────────────────────
+let projectData = [], activeFilter = 'All', refreshTimer = null;
+
+function setSyncStatus(state, text) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = state;
+  document.getElementById('sync-time').textContent = text;
+}
+
+async function loadData() {
+  setSyncStatus('', 'Refreshing...');
+  if (TAB_GID === 'GID_HERE') {
+    showError(`<strong>One more step to connect Google Sheets:</strong><br><br>
+      1. In your Hot Sheet, create a new tab and name it <code>Master Timeline</code><br>
+      2. Paste the CSV data into that tab (Row 1 = headers)<br>
+      3. Click the <code>Master Timeline</code> tab — look at the browser URL for <code>#gid=XXXXXXXXXX</code><br>
+      4. Copy that number<br>
+      5. On GitHub, open <code>index.html</code>, click the pencil icon to edit<br>
+      6. Find <code>const TAB_GID = 'GID_HERE'</code> near the top<br>
+      7. Replace <code>GID_HERE</code> with your number, then commit<br><br>
+      The timeline will load automatically once the gid is set.`);
+    return;
+  }
+  try {
+    const res = await fetch(SHEET_CSV_URL + '&t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const parsed = d3.csvParse(text);
+    const visible = parsed.filter(p => p.id && p.group && p.name && p.startDate && p.endDate && (p.show || 'yes').toLowerCase().trim() !== 'no');
+    if (visible.length === 0) throw new Error('No visible projects found. Check your sheet has data and the "show" column is set to "yes".');
+    projectData = visible;
+    setSyncStatus('ok', 'Updated ' + d3.timeFormat('%I:%M %p')(new Date()));
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-msg').style.display = 'none';
+    document.getElementById('gantt-svg').style.display = 'block';
+    render(projectData, activeFilter);
+  } catch(err) {
+    setSyncStatus('error', 'Sync failed');
+    if (projectData.length === 0) {
+      showError(`<strong>Could not load data from Google Sheets.</strong><br><br>
+        Error: ${err.message}<br><br>
+        Make sure:<br>
+        - The sheet tab is published to the web (File > Share > Publish to web)<br>
+        - The TAB_GID in this file matches your "Master Timeline" tab<br>
+        - "Automatically republish when changes are made" is checked`);
+    } else {
+      console.warn('Refresh failed, showing cached data:', err);
+    }
+  }
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(loadData, AUTO_REFRESH_MIN * 60 * 1000);
+}
+
+function showError(html) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('gantt-svg').style.display = 'none';
+  const el = document.getElementById('error-msg');
+  el.style.display = 'block'; el.innerHTML = html;
+}
+
 // ── LAYOUT ───────────────────────────────────────────────────
 function buildLayout(data, filter) {
-  let y = 0, projIdx = 0;
-  const rows = [];
+  let y = 0, projIdx = 0; const rows = [];
   GROUPS.forEach(group => {
     if (filter !== 'All' && filter !== group) return;
-    rows.push({ type: 'group', group, y }); y += GROUP_H;
-    data.filter(p => p.group === group).forEach(project => {
-      rows.push({ type: 'project', project, group, y, projIdx: projIdx++ }); y += ROW_H;
-    });
+    const gp = data.filter(p => p.group === group);
+    if (gp.length === 0) return;
+    rows.push({ type:'group', group, y }); y += GROUP_H;
+    gp.forEach(p => { rows.push({ type:'project', project:p, group, y, projIdx:projIdx++ }); y += ROW_H; });
   });
   return { rows, totalHeight: y };
 }
@@ -145,20 +236,36 @@ function render(data, filter) {
   svg.selectAll('*').remove();
   const defs = svg.append('defs');
 
-  svg.append('rect').attr('width', totalW).attr('height', totalH).attr('fill', '#fff');
-  svg.append('rect').attr('width', SIDEBAR_W).attr('height', totalH).attr('fill', '#f8fafc');
-  svg.append('line').attr('x1', SIDEBAR_W).attr('x2', SIDEBAR_W).attr('y1', 0).attr('y2', totalH).attr('stroke', '#e2e8f0').attr('stroke-width', 1);
-  svg.append('rect').attr('width', totalW).attr('height', MONTH_H).attr('fill', '#0f172a');
-  svg.append('text').attr('x', 14).attr('y', MONTH_H / 2).attr('dy', '0.35em').attr('font-size', '10px').attr('font-weight', '700').attr('fill', '#475569').attr('letter-spacing', '0.8px').text('PROJECT');
+  // Hatch pattern for on-hold
+  const pat = defs.append('pattern').attr('id','hatch').attr('patternUnits','userSpaceOnUse').attr('width',8).attr('height',8).attr('patternTransform','rotate(45)');
+  pat.append('line').attr('x1',0).attr('x2',0).attr('y1',0).attr('y2',8).attr('stroke','rgba(0,0,0,0.15)').attr('stroke-width',3);
 
-  const months = d3.timeMonths(YEAR_START, YEAR_END);
-  const monthW = CHART_W / 12;
-  months.forEach(month => {
-    const x = SIDEBAR_W + xScale(month);
-    svg.append('line').attr('x1', x).attr('x2', x).attr('y1', MONTH_H).attr('y2', totalH).attr('stroke', '#e2e8f0').attr('stroke-width', 1);
-    svg.append('text').attr('x', x + monthW / 2).attr('y', MONTH_H / 2).attr('dy', '0.35em').attr('text-anchor', 'middle').attr('font-size', '11px').attr('font-weight', '600').attr('fill', '#94a3b8').text(d3.timeFormat('%b')(month));
+  svg.append('rect').attr('width',totalW).attr('height',totalH).attr('fill','#fff');
+
+  // Quarter bands
+  [['Q1','2026-01-01','2026-04-01','#f8fafc'],['Q2','2026-04-01','2026-07-01','#f1f5f9'],['Q3','2026-07-01','2026-10-01','#f8fafc'],['Q4','2026-10-01','2027-01-01','#f1f5f9']].forEach(([label, s, e, fill]) => {
+    const sd = new Date(s), ed = new Date(e);
+    const qx = SIDEBAR_W + xScale(sd), qw = xScale(ed) - xScale(sd);
+    svg.append('rect').attr('x',qx).attr('y',MONTH_H).attr('width',qw).attr('height',totalH-MONTH_H).attr('fill',fill);
+    svg.append('text').attr('x',qx+qw/2).attr('y',MONTH_H+11).attr('text-anchor','middle').attr('font-size','9px').attr('font-weight','700').attr('fill','#cbd5e1').attr('letter-spacing','1px').text(label);
   });
-  svg.append('line').attr('x1', totalW - 1).attr('x2', totalW - 1).attr('y1', MONTH_H).attr('y2', totalH).attr('stroke', '#e2e8f0').attr('stroke-width', 1);
+
+  // Sidebar bg + border
+  svg.append('rect').attr('width',SIDEBAR_W).attr('height',totalH).attr('fill','#f8fafc');
+  svg.append('line').attr('x1',SIDEBAR_W).attr('x2',SIDEBAR_W).attr('y1',0).attr('y2',totalH).attr('stroke','#e2e8f0').attr('stroke-width',1);
+
+  // Header bar
+  svg.append('rect').attr('width',totalW).attr('height',MONTH_H).attr('fill','#0f172a');
+  svg.append('text').attr('x',14).attr('y',MONTH_H/2).attr('dy','0.35em').attr('font-size','10px').attr('font-weight','700').attr('fill','#475569').attr('letter-spacing','0.8px').text('PROJECT');
+
+  // Month columns
+  const monthW = CHART_W / 12;
+  d3.timeMonths(YEAR_START, YEAR_END).forEach(month => {
+    const x = SIDEBAR_W + xScale(month);
+    svg.append('line').attr('x1',x).attr('x2',x).attr('y1',MONTH_H).attr('y2',totalH).attr('stroke','#e2e8f0').attr('stroke-width',1);
+    svg.append('text').attr('x',x+monthW/2).attr('y',MONTH_H/2).attr('dy','0.35em').attr('text-anchor','middle').attr('font-size','11px').attr('font-weight','600').attr('fill','#94a3b8').text(d3.timeFormat('%b')(month));
+  });
+  svg.append('line').attr('x1',totalW-1).attr('x2',totalW-1).attr('y1',MONTH_H).attr('y2',totalH).attr('stroke','#e2e8f0').attr('stroke-width',1);
 
   rows.forEach(row => {
     const absY = MONTH_H + row.y;
@@ -166,100 +273,126 @@ function render(data, filter) {
     else drawProjectRow(svg, row.project, row.group, absY, row.projIdx, defs);
   });
 
+  // Today line — always on top
   const todayX = SIDEBAR_W + xScale(TODAY);
-  svg.append('rect').attr('x', todayX - 24).attr('y', 0).attr('width', 48).attr('height', MONTH_H).attr('fill', '#dc2626').attr('opacity', 0.12);
-  svg.append('text').attr('x', todayX).attr('y', MONTH_H / 2).attr('dy', '0.35em').attr('text-anchor', 'middle').attr('font-size', '9px').attr('font-weight', '800').attr('fill', '#fca5a5').attr('letter-spacing', '0.5px').text('TODAY');
-  svg.append('line').attr('x1', todayX).attr('x2', todayX).attr('y1', MONTH_H).attr('y2', totalH).attr('stroke', '#dc2626').attr('stroke-width', 1.5).attr('stroke-dasharray', '5,3').attr('opacity', 0.65);
+  svg.append('rect').attr('x',todayX-24).attr('y',0).attr('width',48).attr('height',MONTH_H).attr('fill','#dc2626').attr('opacity',0.12);
+  svg.append('text').attr('x',todayX).attr('y',MONTH_H/2).attr('dy','0.35em').attr('text-anchor','middle').attr('font-size','9px').attr('font-weight','800').attr('fill','#fca5a5').attr('letter-spacing','0.5px').text('TODAY');
+  svg.append('line').attr('x1',todayX).attr('x2',todayX).attr('y1',MONTH_H).attr('y2',totalH).attr('stroke','#dc2626').attr('stroke-width',1.5).attr('stroke-dasharray','5,3').attr('opacity',0.65);
 }
 
 // ── GROUP HEADER ─────────────────────────────────────────────
 function drawGroupHeader(svg, group, absY, totalW) {
   const c = G[group];
-  svg.append('rect').attr('x', 0).attr('y', absY).attr('width', totalW).attr('height', GROUP_H).attr('fill', c.headerBg);
-  svg.append('rect').attr('x', 0).attr('y', absY).attr('width', 4).attr('height', GROUP_H).attr('fill', c.accent);
-  svg.append('line').attr('x1', 0).attr('x2', totalW).attr('y1', absY).attr('y2', absY).attr('stroke', c.accent).attr('stroke-width', 0.5).attr('opacity', 0.4);
-  svg.append('line').attr('x1', 0).attr('x2', totalW).attr('y1', absY + GROUP_H).attr('y2', absY + GROUP_H).attr('stroke', c.accent).attr('stroke-width', 0.5).attr('opacity', 0.4);
-  svg.append('text').attr('x', 16).attr('y', absY + GROUP_H / 2).attr('dy', '0.35em').attr('font-size', '11px').attr('font-weight', '800').attr('fill', c.headerText).attr('letter-spacing', '0.5px').text(group.toUpperCase());
+  svg.append('rect').attr('x',0).attr('y',absY).attr('width',totalW).attr('height',GROUP_H).attr('fill',c.headerBg);
+  svg.append('rect').attr('x',0).attr('y',absY).attr('width',4).attr('height',GROUP_H).attr('fill',c.accent);
+  svg.append('line').attr('x1',0).attr('x2',totalW).attr('y1',absY).attr('y2',absY).attr('stroke',c.accent).attr('stroke-width',0.5).attr('opacity',0.4);
+  svg.append('line').attr('x1',0).attr('x2',totalW).attr('y1',absY+GROUP_H).attr('y2',absY+GROUP_H).attr('stroke',c.accent).attr('stroke-width',0.5).attr('opacity',0.4);
+  svg.append('text').attr('x',16).attr('y',absY+GROUP_H/2).attr('dy','0.35em').attr('font-size','11px').attr('font-weight','800').attr('fill',c.headerText).attr('letter-spacing','0.5px').text(group.toUpperCase());
 }
 
 // ── PROJECT ROW ──────────────────────────────────────────────
 function drawProjectRow(svg, project, group, absY, projIdx, defs) {
   const c = G[group], totalW = SIDEBAR_W + CHART_W;
-  if (projIdx % 2 === 0) svg.append('rect').attr('x', 0).attr('y', absY).attr('width', totalW).attr('height', ROW_H).attr('fill', '#f8fafc').attr('opacity', 0.6);
-  svg.append('line').attr('x1', 0).attr('x2', totalW).attr('y1', absY + ROW_H).attr('y2', absY + ROW_H).attr('stroke', '#e2e8f0').attr('stroke-width', 0.5);
-  svg.append('text').attr('x', 14).attr('y', absY + 17).attr('dy', '0.35em').attr('font-size', '11px').attr('font-weight', '600').attr('fill', '#0f172a').text(trunc(project.name, 28));
-  svg.append('text').attr('x', 14).attr('y', absY + 36).attr('dy', '0.35em').attr('font-size', '10px').attr('fill', '#94a3b8').text('PM: ' + trunc(project.pm, 22));
+  const status   = (project.status || 'active').toLowerCase().trim().replace(/\s+/g,'-');
+  const priority = (project.priority || 'normal').toLowerCase().trim();
+  const isHold   = status === 'on-hold';
+  const isDone   = status === 'complete';
+
+  if (projIdx % 2 === 0) svg.append('rect').attr('x',0).attr('y',absY).attr('width',totalW).attr('height',ROW_H).attr('fill','#f8fafc').attr('opacity',0.6);
+  svg.append('line').attr('x1',0).attr('x2',totalW).attr('y1',absY+ROW_H).attr('y2',absY+ROW_H).attr('stroke','#e2e8f0').attr('stroke-width',0.5);
+
+  // Priority dot
+  if (priority === 'high') svg.append('circle').attr('cx',8).attr('cy',absY+16).attr('r',3.5).attr('fill','#dc2626');
+
+  // Labels
+  svg.append('text').attr('x',14).attr('y',absY+17).attr('dy','0.35em').attr('font-size','11px').attr('font-weight','600').attr('fill',isDone?'#94a3b8':'#0f172a').attr('text-decoration',isDone?'line-through':'none').text(trunc(project.name,27));
+  svg.append('text').attr('x',14).attr('y',absY+36).attr('dy','0.35em').attr('font-size','10px').attr('fill','#94a3b8').text('PM: '+trunc(project.pm,22));
 
   const startD = parseDate(project.startDate), endD = parseDate(project.endDate);
-  const barX = SIDEBAR_W + xScale(startD), barW = Math.max(xScale(endD) - xScale(startD), 2);
-  const barY = absY + BAR_PAD, barH = ROW_H - BAR_PAD * 2;
+  if (!startD || !endD) return;
+  const barX = SIDEBAR_W + xScale(startD), barW = Math.max(xScale(endD)-xScale(startD),2);
+  const barY = absY + BAR_PAD, barH = ROW_H - BAR_PAD*2;
 
-  const clipId = 'cp_' + project.id.replace(/[^a-z0-9]/gi, '_');
-  defs.append('clipPath').attr('id', clipId).append('rect').attr('x', barX).attr('y', barY).attr('width', barW).attr('height', barH).attr('rx', 5).attr('ry', 5);
+  const clipId = 'cp_' + project.id.replace(/[^a-z0-9]/gi,'_');
+  defs.append('clipPath').attr('id',clipId).append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH).attr('rx',5).attr('ry',5);
 
-  const phases = autoPhases(project.startDate, project.endDate);
-  const phaseGrp = svg.append('g').attr('clip-path', `url(#${clipId})`);
-  phases.forEach((phase, i) => {
-    const px = SIDEBAR_W + xScale(phase.start), pw = xScale(phase.end) - xScale(phase.start);
-    if (pw <= 0) return;
-    phaseGrp.append('rect').attr('x', px).attr('y', barY).attr('width', pw).attr('height', barH).attr('fill', c.phases[i]);
-  });
+  const phaseGrp = svg.append('g').attr('clip-path',`url(#${clipId})`);
 
-  let cur = new Date(startD);
-  const totMs = endD - startD;
-  PHASE_WEIGHTS.forEach((w, i) => {
-    if (i === PHASE_WEIGHTS.length - 1) return;
-    cur = new Date(cur.getTime() + totMs * w);
-    const lx = SIDEBAR_W + xScale(cur);
-    phaseGrp.append('line').attr('x1', lx).attr('x2', lx).attr('y1', barY).attr('y2', barY + barH).attr('stroke', 'rgba(255,255,255,0.3)').attr('stroke-width', 1);
-  });
+  if (isDone) {
+    phaseGrp.append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH).attr('fill','#e2e8f0');
+    // Checkmark text
+    if (barW > 30) svg.append('text').attr('x',barX+7).attr('y',absY+ROW_H/2).attr('dy','0.35em').attr('font-size','11px').attr('fill','#94a3b8').attr('pointer-events','none').text('✓ ' + project.id);
+  } else if (isHold) {
+    phaseGrp.append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH).attr('fill',c.phases[1]);
+    phaseGrp.append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH).attr('fill','url(#hatch)');
+    if (barW > 36) svg.append('text').attr('x',barX+7).attr('y',absY+ROW_H/2).attr('dy','0.35em').attr('font-size','9.5px').attr('font-weight','700').attr('fill','rgba(255,255,255,0.7)').attr('pointer-events','none').text(project.id);
+  } else {
+    const phases = getPhases(project);
+    phases.forEach((phase,i) => {
+      const px = SIDEBAR_W+xScale(phase.start), pw = xScale(phase.end)-xScale(phase.start);
+      if (pw<=0) return;
+      phaseGrp.append('rect').attr('x',px).attr('y',barY).attr('width',pw).attr('height',barH).attr('fill',c.phases[i]);
+    });
+    phases.slice(0,-1).forEach(phase => {
+      const lx = SIDEBAR_W+xScale(phase.end);
+      phaseGrp.append('line').attr('x1',lx).attr('x2',lx).attr('y1',barY).attr('y2',barY+barH).attr('stroke','rgba(255,255,255,0.3)').attr('stroke-width',1);
+    });
+    if (barW > 36) svg.append('text').attr('x',barX+7).attr('y',absY+ROW_H/2).attr('dy','0.35em').attr('font-size','9.5px').attr('font-weight','700').attr('fill','rgba(255,255,255,0.85)').attr('pointer-events','none').text(project.id);
+  }
 
-  if (barW > 36) svg.append('text').attr('x', barX + 7).attr('y', absY + ROW_H / 2).attr('dy', '0.35em').attr('font-size', '9.5px').attr('font-weight', '700').attr('fill', 'rgba(255,255,255,0.8)').attr('pointer-events', 'none').text(project.id);
-
-  if (project.showDate) {
+  // Show date diamond
+  if (project.showDate && project.showDate.trim()) {
     const sdD = parseDate(project.showDate);
-    if (sdD >= startD && sdD <= endD) {
-      const sdX = SIDEBAR_W + xScale(sdD), sdY = absY + ROW_H / 2, ds = 6;
-      svg.append('polygon').attr('points', `${sdX},${sdY-ds} ${sdX+ds},${sdY} ${sdX},${sdY+ds} ${sdX-ds},${sdY}`).attr('fill', '#dc2626').attr('stroke', '#fff').attr('stroke-width', 1.5).attr('pointer-events', 'none');
+    if (sdD && sdD >= startD && sdD <= endD) {
+      const sdX = SIDEBAR_W+xScale(sdD), sdY = absY+ROW_H/2, ds=6;
+      svg.append('polygon').attr('points',`${sdX},${sdY-ds} ${sdX+ds},${sdY} ${sdX},${sdY+ds} ${sdX-ds},${sdY}`).attr('fill','#dc2626').attr('stroke','#fff').attr('stroke-width',1.5).attr('pointer-events','none');
     }
   }
 
+  // Tooltip
   const tooltip = d3.select('#tooltip');
-  const hitRect = svg.append('rect').attr('x', barX).attr('y', absY).attr('width', barW).attr('height', ROW_H).attr('fill', 'transparent').attr('cursor', 'crosshair');
+  const hitRect = svg.append('rect').attr('x',barX).attr('y',absY).attr('width',barW).attr('height',ROW_H).attr('fill','transparent').attr('cursor','crosshair');
 
   hitRect.on('mouseenter', () => {
-    svg.append('rect').attr('class', 'hover-ring').attr('x', barX - 1).attr('y', barY - 1).attr('width', barW + 2).attr('height', barH + 2).attr('fill', 'none').attr('stroke', c.base).attr('stroke-width', 2).attr('rx', 6).attr('pointer-events', 'none').attr('opacity', 0.85);
+    svg.append('rect').attr('class','hover-ring').attr('x',barX-1).attr('y',barY-1).attr('width',barW+2).attr('height',barH+2).attr('fill','none').attr('stroke',isDone?'#94a3b8':c.base).attr('stroke-width',2).attr('rx',6).attr('pointer-events','none').attr('opacity',0.85);
   });
-  hitRect.on('mouseleave', () => {
-    svg.selectAll('.hover-ring').remove();
-    tooltip.style('display', 'none');
-  });
+  hitRect.on('mouseleave', () => { svg.selectAll('.hover-ring').remove(); tooltip.style('display','none'); });
   hitRect.on('mousemove', function(event) {
-    const phasesForTT = autoPhases(project.startDate, project.endDate);
-    const phaseRows = phasesForTT.map(p => `<div><span>${p.name}</span><span>${fmtDate(p.start)} - ${fmtDate(p.end)}</span></div>`).join('');
-    const showLine = project.showDate ? `<div class="tt-show">Event: ${fmtDate(parseDate(project.showDate))}</div>` : '';
-    const cdLine = project.cd ? ` &nbsp;&middot;&nbsp; CD: ${project.cd}` : '';
-    tooltip.style('display', 'block').style('left', (event.clientX + 16) + 'px').style('top', (event.clientY - 12) + 'px')
-      .html(`<div class="tt-header"><span class="tt-id">${project.id}</span><span class="tt-name">${project.name}</span></div><div class="tt-meta">${project.type} &nbsp;&middot;&nbsp; ${project.location}</div>${showLine}<div class="tt-team">PM: ${project.pm}${cdLine}</div><div class="tt-phases">${phaseRows}</div>${project.brief ? `<div class="tt-brief">${project.brief}</div>` : ''}`);
+    const phases = getPhases(project);
+    const phaseRows = phases.map(p=>`<div><span>${p.name}</span><span>${fmtDate(p.start)} - ${fmtDate(p.end)}</span></div>`).join('');
+    const showLine = project.showDate && project.showDate.trim() ? `<div class="tt-show">Event: ${fmtDate(parseDate(project.showDate))}</div>` : '';
+    const cdLine   = project.cd && project.cd.trim() ? ` &middot; CD: ${project.cd}` : '';
+    const notesLine = project.notes && project.notes.trim() ? `<div class="tt-notes">Note: ${project.notes}</div>` : '';
+    const statusDisplay = status.replace('-',' ');
+
+    tooltip.style('display','block').style('left',(event.clientX+16)+'px').style('top',(event.clientY-12)+'px')
+      .html(`<div class="tt-header"><span class="tt-id">${project.id}</span><span class="tt-name">${project.name}</span></div>
+        <div class="tt-meta">${project.type} &middot; ${project.location}</div>
+        ${showLine}
+        <span class="tt-status ${status}">${statusDisplay}</span>
+        <div class="tt-team">PM: ${project.pm}${cdLine}</div>
+        <div class="tt-phases">${phaseRows}</div>
+        ${project.brief?`<div class="tt-brief">${project.brief}</div>`:''}
+        ${notesLine}`);
+
     const ttRect = document.getElementById('tooltip').getBoundingClientRect();
-    if (ttRect.right > window.innerWidth - 10) tooltip.style('left', (event.clientX - ttRect.width - 16) + 'px');
+    if (ttRect.right > window.innerWidth-10) tooltip.style('left',(event.clientX-ttRect.width-16)+'px');
   });
 }
 
 // ── FILTERS ──────────────────────────────────────────────────
-let activeFilter = 'All';
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     activeFilter = btn.dataset.group;
-    render(PROJECT_DATA, activeFilter);
+    if (projectData.length > 0) render(projectData, activeFilter);
   });
 });
 
 // ── INIT ─────────────────────────────────────────────────────
 document.getElementById('today-str').textContent = d3.timeFormat('%B %d, %Y')(TODAY);
-render(PROJECT_DATA, activeFilter);
+loadData();
 </script>
 </body>
 </html>
