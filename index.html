@@ -1,693 +1,3 @@
-
-TVW Account Director & Project Manager
-/
-Okay. I need to build a master timeline for The Virtual Wild that shows all of projects across the year. (January to December). I would like for you to think through all of the things need to build a JavaScript/HTML site that I can then embed into Miro for us to update as needed?
-
-Let's think before we act
-
-10:08 AM
-
-Architected timeline framework addressing data structure, visualization, hosting, and update mechanisms
-Architected timeline framework addressing data structure, visualization, hosting, and update mechanisms
-Good call. Let's map the whole problem before writing a line of code.
-
-Here's how I'm thinking about it across five categories:
-
-1. What Does This Timeline Actually Need to Show?
-Before we think about code, we need to nail the data model. A project row is more than a start and end date. Questions to answer:
-
-What fields does each project have?
-Client, project name, type (trade show, interactive, AR/XR, LED), start date, end date, show/event date (the hard deadline), status (active, hold, complete), primary owner
-What's the grouping structure?
-By client (Leidos, Lockheed, Army Aviation, etc.)? By project type? By team? This drives the swimlane layout.
-Do projects have internal phases?
-Discovery, build, QA, shipping, on-site -- or do you just want a single bar per project?
-How many projects are we showing at once?
-You mentioned 10+ concurrent. That's a density problem we need to plan for.
-2. Visualization Approach
-The right format here is a horizontal Gantt-style timeline with swimlanes, grouped by client.
-
-Key design decisions:
-
-Color coding: By client? By project status? By project type? Pick one -- too many dimensions gets noisy.
-Show date callout: You'll want a distinct visual marker for the hard event date (the show floor opens), separate from the build window.
-Today line: A vertical "now" indicator is essential for a live planning tool.
-Density: With 10+ projects, labels will fight for space. You'll need hover tooltips or click-to-expand for details.
-3. The Miro Embedding Problem (Flag This Early)
-Miro embeds external content via iframe. That means your HTML/JS file needs to live at a real, hosted URL -- not just as a local file.
-
-Your hosting options:
-
-GitHub Pages (free, easy, version-controlled -- my recommendation)
-Netlify (also free, slightly easier to set up, drag-and-drop deploy)
-Hosted on TVW's own server if you have one
-This affects the update workflow too. If it's on GitHub, updates = editing a data file and pushing a commit. If it's on Netlify, updates = drag-and-drop the new version. Both are manageable.
-
-4. The Update Mechanism -- Most Important Decision
-How does the team update this thing? Options:
-
-Approach	Pros	Cons
-Data hardcoded in JS	Simple to build	Requires a dev to update
-Separate JSON data file	Non-devs can edit JSON	Still requires file access
-Google Sheets as backend	Anyone can update in Sheets	More complex build
-Simple admin UI in the page	Click-to-edit in the browser	Most complex to build
-My lean: Start with a clean JSON data file. It keeps the build simple and separates content from code. If the team wants to update it without touching code later, we add a Sheets integration as phase 2.
-
-5. Interactivity Scope
-What's the minimum useful feature set vs. what's nice-to-have?
-
-Must have:
-
-Full year view, Jan-Dec
-Projects as horizontal bars with labels
-Client swimlanes
-Today indicator
-Color coding by client or status
-Hover tooltip with project details
-Nice to have:
-
-Click to expand/see full project card
-Filter by client or status
-Zoom in on a specific quarter
-Show/event date callout marker
-Skip for now:
-
-Edit mode in the browser
-Sheets integration
-Multi-user collaboration
-Before We Build: Decisions You Need to Make
-Grouping: Swimlanes by client or by project type?
-Color coding: One system -- client, status, or type?
-Phase bars: Single bar per project, or broken into phases (build, QA, on-site)?
-Project list: Can you give me a current project list with rough dates so we build with real data from the start?
-Hosting: Do you have a GitHub account or preferred host, or should we set that up?
-Update owner: Who will maintain this? Just you, or does the broader team need to edit it?
-Once you answer those, I can draft the full data schema and we build it in one clean pass. Want to work through these now or do you want to pull in your project list first?
-
-What does the timeline actually need to show? 1. Fields each project has? 1. Client, Project Name, Type, Start/End Date, Status, Primary Owner and CD 2. Grouping by Clients 1. Leidos 2. Husky 3. TVW Others (or any better suggested name) 1. Lockheed Martin 2. CACI 3. River Legacy 4. Etc 3. Project Has Phases 1. Planning/Discovery 2. Design 3. Development/Production 4. QA 5. Delivery 4. We’re talking about 15 projects or more
-Horizontal Gantt-style for sure 1. Aligned with your design decisions
-I’ll host on GitHub
-Let’s start with JSON
-Align with the Scope
-
-Swim lanes by client
-Color Coding - By Client
-Phase bars - whatever you recommend
-Project list
-I do have GitHub account
-I’ll own this, and then Emily will help later on
-
-Show more
-10:17 AM
-
-Architected Gantt timeline with client grouping and phase visualization strategy
-Architected Gantt timeline with client grouping and phase visualization strategy
-Good. I can work from the screenshot too -- I can already pull 17 projects from it. Let me lay out the full plan before we write a single line.
-
-Architecture Decision Summary
-Stack: Vanilla HTML/CSS/JS + D3.js for SVG rendering No framework overhead. D3 handles date math, scaling, and SVG natively. Easier for Emily to eventually edit.
-
-Files:
-
-/tvw-timeline/
-  index.html       ← layout shell + D3 render logic
-  styles.css       ← fonts, colors, UI chrome
-  script.js        ← Gantt logic, interactions
-  data.json        ← all project data (the only file you touch to update)
-Data Schema (JSON)
-Each project object looks like this:
-
-json
-{
-  "id": "264",
-  "client": "leidos",
-  "group": "Leidos",
-  "name": "MDO CLD Space Symposium Updates",
-  "type": "XR / Tradeshow",
-  "location": "Colorado Springs, CO",
-  "showDate": "2026-04-13",
-  "startDate": "2026-02-01",
-  "endDate": "2026-04-13",
-  "status": "active",
-  "pm": "Justin",
-  "cd": "Shawn",
-  "brief": "Updating the MDO and CLD platform for Space Symposium (DSS, DigiMod)",
-  "phases": [
-    { "name": "Discovery", "start": "2026-02-01", "end": "2026-02-14" },
-    { "name": "Design", "start": "2026-02-15", "end": "2026-03-01" },
-    { "name": "Development", "start": "2026-03-02", "end": "2026-03-25" },
-    { "name": "QA", "start": "2026-03-26", "end": "2026-04-06" },
-    { "name": "Delivery", "start": "2026-04-07", "end": "2026-04-13" }
-  ]
-}
-```
-
----
-
-## Client Groups + Color System
-
-| Group | Key | Color |
-|---|---|---|
-| Leidos | `leidos` | Blue family (#3B7DD8) |
-| Husky | `husky` | Teal/Green family (#2EAF8A) |
-| TVW Network | `tvw` | Purple family (#7B5EA7) |
-
-"TVW Network" as the third group name -- covers Lockheed, CACI, River Legacy, Exhibitor Live, Mattermost, etc. Cleaner than "TVW Others."
-
-Phase segments use **tinted shades** of each client color so the full bar reads as one project but phases are visible on close inspection.
-
----
-
-## Phase Visualization Recommendation
-
-**Segmented bars with hover expansion.**
-
-Here's why:
-
-- Default view: each project = one full-width bar, subdivided into 5 colored phase segments (lightest = Discovery, darkest = Delivery)
-- Hover: tooltip shows phase names with exact dates + PM/CD
-- Click: expands the row to show labeled phase bars (like a sub-Gantt)
-- Today line: bright vertical rule across all rows
-
-This keeps 15+ projects readable at a glance while preserving all the phase detail when you need it. Fully collapsed, it reads like a clean Gantt. Expanded, it's a full production schedule.
-
----
-
-## Visual Layout
-```
-[Header: TVW 2026 Production Timeline]    [Today: March 13]   [Filter: All | Leidos | Husky | TVW Network]
-
-JAN    FEB    MAR    APR    MAY    JUN    JUL    AUG    SEP    OCT    NOV    DEC
-────────────────────────────────────────────────────────────────────────────────
-LEIDOS
-  MDO Sea Air Space 2026     [═══Discovery══╪══Design══╪══Dev══╪QA╪D]  📍Apr 20
-  MDO CLD Space Symposium              [══════════╪════════╪══╪D]        📍Apr 13
-  ...
-
-HUSKY
-  Robot HQ                        [═══════════════════╪═════╪═╪D]       📍Apr
-  ...
-
-TVW NETWORK
-  Lockheed GF2026             [══╪════╪══╪D]                              📍Mar 24
-  ...
-────────────────────────────────────────────────────────────────────────────────
-                         ▲ TODAY
-What I Need Before Building
-I can seed the JSON with the 17 projects visible in your screenshot, but I'll need you to fill in the gaps:
-
-Missing start dates -- most projects show a show/event date but not when work actually started
-Confirm group assignment -- is Marquis Exhibits under "TVW Network" or a separate client?
-Status for each project -- active, complete, or on hold? Especially the ones marked TBD
-Phase dates -- do you want me to rough-estimate phases based on the show date and project type, or do you have actuals?
-My suggestion: Let me build the full working app now using estimated/placeholder phase data from the screenshot. You swap in real dates in the JSON once it's running. That gets you something live to look at today.
-
-Ready to build on your go. One question first: do you want the filter buttons (All / Leidos / Husky / TVW Network) in the header, or keep it dead simple for v1 with no filtering?
-
-All of those are active. Let's have a start date of March 1
-
-10:19 AM
-
-Architecting comprehensive Gantt timeline with D3 visualization
-Architecting comprehensive Gantt timeline with D3 visualization
-Good. Let's build.
-
-
-Synthesized requirements and prepared implementation roadmap
-Synthesized requirements and prepared implementation roadmap
-Both files are ready. Here's what's built and what to do next.
-
-What's in the build
-17 projects across 3 client swimlanes, seeded from your screenshot with March 1 start dates.
-
-Visual system:
-
-Phase segments auto-calculated (Discovery → Delivery, light to dark within each client color)
-Red diamond marks every hard event/show date
-Dashed red today line with "TODAY" callout in the header
-Hover any bar for full tooltip: project name, type, location, show date, PM/CD, phase breakdown, brief
-Filter buttons (All / Leidos / Husky / TVW Network) in the top bar
-Alternating row stripes for readability at density
-Getting it live on GitHub Pages
-Create a new repo (e.g. tvw-timeline) on GitHub
-Drop both index.html and data.json in the root
-Go to Settings → Pages → Branch: main, folder: / (root)
-GitHub gives you a URL like https://yourusername.github.io/tvw-timeline
-That URL goes into Miro as an embed (Insert → Embed → paste URL).
-
-Updating data going forward
-Only file you touch is data.json. Each project follows the same structure. Fields to update most often:
-
-endDate and showDate as timelines shift
-pm and cd as assignments change
-Add new projects by copying any existing block and updating the id
-When Emily takes over, same deal. Edit the JSON, commit, GitHub Pages auto-refreshes within a minute.
-
-One thing to flag now: 4-5 of your near-term bars (242, 251, LMF, EL, 240) are short because the show dates are within weeks of March 1. Phase segments will be compressed but readable. If you want those bars to start earlier than March 1 to show more history, just update the startDate in the JSON.
-
-Index
-Code · HTML 
-Data
-Code · JSON 
-Right now this is what it says:
-
-10:31 AM
-
-Diagnosed CORS fetch limitation, proposed inlining solution
-Diagnosed CORS fetch limitation, proposed inlining solution
-Expected. The fetch() call for data.json is blocked when the file is opened locally. The fix is to inline the JSON directly into the HTML so it's one self-contained file -- no server needed until you push to GitHub.
-
-
-Architected self-contained HTML solution with inlined data
-Architected self-contained HTML solution with inlined data
-Fixed. The data is now inlined directly in the JS -- no fetch, no server required. Single file, opens from anywhere.
-
-What changed: Replaced the fetch('data.json') call with a PROJECT_DATA constant at the top of the script. That's also now the only section you or Emily need to touch to update projects -- it's clearly labeled with a comment.
-
-For GitHub: You only need to push the one index.html file now. data.json is no longer a separate dependency. When you're ready to push, the GitHub Pages setup steps from before still apply -- just one file this time.
-
-Index
-Code · HTML 
-Okay - never uploaded to GitHub before. How do I do it?
-
-10:37 AM
-
-Recognized straightforward instructional query requiring no external resources
-Recognized straightforward instructional query requiring no external resources
-Easy. Here's the whole thing start to finish.
-
-Step 1 — Create the repo
-Go to github.com and sign in
-Click the + in the top right corner → New repository
-Name it: tvw-timeline
-Set it to Public (required for free GitHub Pages hosting)
-Leave everything else as-is, click Create repository
-Step 2 — Upload your file
-On the repo page, click uploading an existing file (it's a link in the middle of the empty repo screen)
-Drag and drop your index.html file onto the upload area
-Scroll down, click Commit changes
-Step 3 — Turn on GitHub Pages
-Click Settings (top nav of the repo)
-In the left sidebar, click Pages
-Under Branch, select main and keep the folder as / (root)
-Click Save
-GitHub will show a banner: "Your site is live at..." -- usually takes about 60 seconds to go live.
-
-Step 4 — Get your URL
-It'll be: https://YOUR-USERNAME.github.io/tvw-timeline
-
-That's the URL you paste into Miro to embed it.
-
-Updating it later
-When you need to update projects in the file:
-
-Go to your repo on GitHub
-Click index.html
-Click the pencil icon (Edit) in the top right
-Make your changes in the PROJECT_DATA section
-Click Commit changes
-Live within about 60 seconds. No terminal, no installs, nothing else needed.
-
-I'm on step 3. Here's what I see
-
-10:40 AM
-
-Pinpointed navigation pathway to correct settings section
-Pinpointed navigation pathway to correct settings section
-You're in the right place, just one click away. In that left sidebar, click Pages — it's right there near the bottom of the list.
-
-Okay. I'm on step 4. Here's what I'm seeing:
-
-10:44 AM
-
-Diagnosed deployment status and pinpointed missing file upload
-Diagnosed deployment status and pinpointed missing file upload
-Good news -- Pages is already configured correctly. Your URL is live at:
-
-https://justinbarrowtvw.github.io/tvw-timeline/
-
-The 404 just means GitHub hasn't found your index.html file yet. It's either still deploying (can take 2-3 minutes) or the file isn't in the repo yet.
-
-Quick check:
-
-Click Code in the top nav of your repo
-Do you see index.html listed there?
-Yes -- just wait another 2 minutes and refresh the URL
-No -- you need to upload the file. Click Add file → Upload files, drag in your index.html, and commit it
-Which one are you seeing?
-
-Seeing one in there but getting the same issue.
-
-10:48 AM
-
-Identified file naming convention mismatch causing deployment failure
-Identified file naming convention mismatch causing deployment failure
-Found it. The file uploaded as index_1.html -- GitHub Pages requires it to be named exactly index.html to serve it at the root URL.
-
-Two options to fix it:
-
-Option A -- Rename it on GitHub (easiest)
-
-Click index_1.html in the file list
-Click the pencil icon (Edit) top right
-At the very top, click on the filename field and change it to index.html
-Click Commit changes
-Option B -- Delete and re-upload
-
-Click index_1.html
-Click the ... menu top right → Delete file → Commit
-Go back to Code, click Add file → Upload files
-Upload your file -- make sure it's saved as index.html on your machine before dragging it in
-Option A is faster. Once it's renamed and committed, give it 60 seconds and your URL will load.
-
-Okay. Just renamed it
-
-10:50 AM
-
-Prescribed patience and page refresh strategy
-Prescribed patience and page refresh strategy
-Give it 60 seconds then hit this URL:
-
-https://justinbarrowtvw.github.io/tvw-timeline/
-
-If it's still showing 404, just hard refresh with Cmd + Shift + R and it should pull up.
-
-BOOMO
-
-10:52 AM
-
-Gauged enthusiasm and validated functionality
-Gauged enthusiasm and validated functionality
-Let's go. You've got a live, hosted production timeline at a real URL.
-
-Here's your Miro embed step while you're in the flow:
-
-Open your Miro board
-Click + → Embed
-Paste https://justinbarrowtvw.github.io/tvw-timeline/
-Hit enter
-Your update workflow from here:
-
-Go to the repo → click index.html → pencil icon → find the PROJECT_DATA section at the top → edit dates, add projects, change PMs → Commit changes → live in ~60 seconds
-That's the whole system. One file, one URL, updates in under a minute.
-
-Alright more on that in a bit. need your help now embedding a google sheets into Miro
-
-10:53 AM
-
-Identified straightforward integration task between platforms
-Identified straightforward integration task between platforms
-Simple. Two ways depending on what you need:
-
-Option A — Live embed (updates automatically)
-
-Open your Google Sheet
-Click File → Share → Publish to web
-Under "Link," select the specific sheet tab you want
-Click Publish → copy the URL it gives you
-In Miro: + → Embed → paste the URL
-The sheet will live-update in Miro as you edit it.
-
-Option B — Embed link directly (simpler, less reliable)
-
-Open your Google Sheet
-Copy the URL from the browser
-In Miro: + → Embed → paste it
-This works sometimes but may prompt viewers to sign in. Option A is cleaner.
-
-One heads up: Miro's embed for Sheets is view-only -- you can't edit the sheet from inside Miro. You'd still edit it in Google Sheets and the Miro embed refreshes automatically.
-
-Which sheet are you trying to embed?
-
-Hot Sheet. This is the error I'm getting:
-
-10:57 AM
-
-Diagnosed file format incompatibility, prescribed conversion solution
-Diagnosed file format incompatibility, prescribed conversion solution
-The problem is the file is a .xlsx -- Miro can't embed it directly. You need to convert it to a native Google Sheet first.
-
-Fix -- takes 2 minutes:
-
-Open the TVW Hot Sheet in Google Drive
-Click File → Save as Google Sheets
-That creates a new native Google Sheet (the .xlsx stays untouched)
-In the new Google Sheet, click File → Share → Publish to web
-Select your sheet tab → click Publish → copy the URL
-Back in Miro, delete the current broken embed
-+ → Embed → paste the new URL
-That should load clean.
-
-Going back to the master timeline. Is this Java?
-
-10:59 AM
-
-Clarified programming language distinction between Java and JavaScript
-Clarified programming language distinction between Java and JavaScript
-No -- it's JavaScript, which is a completely different language despite the similar name. Easy to mix up.
-
-Quick breakdown of what's in the file:
-
-HTML -- the structure (header, buttons, tooltip)
-CSS -- all the styling (colors, fonts, layout)
-JavaScript -- the logic that draws the timeline, handles filters, and builds tooltips
-D3.js -- a JavaScript library that handles the date math and SVG rendering
-Java is a separate language used mostly for backend systems and Android apps. JavaScript runs in browsers -- which is why your timeline works as a plain HTML file with no server or install required.
-
-Now I'm getting the Same issue with the Hot Sheet
-
-11:28 AM
-
-Diagnosed recurring URL publishing issue with spreadsheet
-Diagnosed recurring URL publishing issue with spreadsheet
-Let's verify you're using the right URL. There are two different URLs in Google Sheets and only one works for Miro.
-
-Make sure you're using the Publish to web URL, not the Share URL:
-
-Open the Google Sheet
-File → Share → Publish to web
-Make sure it says "Entire document" or select the specific tab
-Click Publish (if it hasn't been published yet -- confirm if prompted)
-Copy the URL from that dialog -- it should look like: https://docs.google.com/spreadsheets/d/e/LONG-STRING/pubhtml
-The regular share URL (the one in your browser address bar) won't work. It has to be the pubhtml publish link.
-
-Can you confirm -- are you using the Publish to web URL or the one from your browser bar?
-
-Here's where I'm at
-
-11:28 AM
-
-Identified publishing workflow and next steps
-Identified publishing workflow and next steps
-You're one click away. Hit Publish right now in that dialog.
-
-Once you do, it'll generate a URL. Copy that and paste it into Miro.
-
-Alright let's go back to this production timeline. The team loved it! But now I want to make it so we can update it from a Google Sheet or some other tool that is easy for us to input it into.
-
-11:40 AM
-
-Evaluated data source options before recommending Google Sheets integration
-Evaluated data source options before recommending Google Sheets integration
-Good timing -- the team is already in Sheets, so let's use that. Before building, let me lay out the approach.
-
-How It Would Work
-The timeline fetches a published Google Sheet as a CSV on load, parses it, and renders. No API keys, no auth, no new tools.
-
-The flow:
-
-Team edits the Google Sheet (add projects, update dates, change PMs)
-Sheet auto-publishes every time it's saved
-Anyone who loads the timeline URL gets the latest data
-What the Sheet Would Look Like
-One row per project, columns matching the data fields:
-
-id	group	name	type	location	startDate	endDate	showDate	pm	cd	brief
-263	Leidos	MDO - Sea Air Space	XR / Tradeshow	National Harbor, MD	2026-03-01	2026-04-20	2026-04-20	Justin	Shawn	MDO content updates
-Dates in YYYY-MM-DD format. That's the only formatting rule.
-
-Two Things to Confirm Before I Build
-Is this the Hot Sheet, or a new dedicated tab? I'd recommend a new tab called Timeline inside the Hot Sheet so everything lives in one place. Keeps it clean and Emily can manage it alongside the weekly view.
-Do you want it to refresh automatically every time the page loads, or manually with a refresh button? Auto-load on page open is simpler and probably right for this use case.
-Give me those two answers and I'll build the updated index.html in one pass.
-
-This could be a tab of the Hot Sheet or a Separate Master Timeline. I also want to make it so we can edit the phases as well. Also, think of anything else that might be helpful
-
-11:53 AM
-
-Architected comprehensive timeline design with editable phases and strategic features
-Architected comprehensive timeline design with editable phases and strategic features
-Good. Let's think before we build again. Here's the full picture.
-
-Decision 1: Tab vs Separate Sheet
-My recommendation: Separate sheet called "TVW Master Timeline"
-
-Here's why:
-
-The Hot Sheet is operational and weekly -- different cadence, different audience
-The Timeline is strategic and forward-looking -- you may want to share it with Jay or clients without exposing the full Hot Sheet
-Keeps both cleaner and easier to manage as TVW grows
-Emily can own the Timeline sheet independently
-Decision 2: Editable Phases
-Right now phases are auto-calculated by weight. To make them editable per project, each project row gets phase date columns. Looks like this:
-
-...	disc_start	disc_end	design_start	design_end	dev_start	dev_end	qa_start	qa_end	del_start	del_end
-The timeline reads those directly. If the phase columns are blank, it falls back to auto-calculation so you're never stuck with an empty bar.
-
-Decision 3: Everything Else Worth Adding
-Status column active / on hold / complete -- drives a visual treatment on the bar. Complete projects get a checkmark and muted color. On hold gets a striped pattern. Useful at a glance.
-
-Visible toggle A simple yes/no column called show. Lets you hide a project from the timeline without deleting the row. Useful for pipeline projects not ready to show the team yet.
-
-Priority flag high / normal -- adds a subtle indicator on high-priority projects. Good for leadership reviews.
-
-Notes column One freeform field that shows up in the tooltip. Good for flagging blockers, risks, or key dependencies mid-project.
-
-Auto-refresh interval Timeline re-fetches the sheet every 5 minutes automatically. Means the Miro embed stays current throughout the day without anyone touching it.
-
-Last updated timestamp Small indicator in the header showing when data was last pulled from the sheet. Builds trust that what you're seeing is current.
-
-Quarter highlight bands Subtle Q1/Q2/Q3/Q4 shading behind the grid. Makes it easier to read seasonality and plan capacity across the year.
-
-Proposed Full Column Structure
-Column	Value	Notes
-id	263	Project number
-group	Leidos	Swimlane
-name	MDO - Sea Air Space	Project name
-type	XR / Tradeshow	
-location	National Harbor, MD	
-startDate	2026-03-01	YYYY-MM-DD
-endDate	2026-04-20	YYYY-MM-DD
-showDate	2026-04-20	YYYY-MM-DD, leave blank if none
-status	active	active / on hold / complete
-show	yes	yes / no
-priority	normal	high / normal
-pm	Justin	
-cd	Shawn	
-brief	MDO content updates	
-notes	Waiting on client assets	Optional
-disc_start	2026-03-01	Leave blank to auto-calculate
-disc_end	2026-03-15	
-design_start	2026-03-16	
-design_end	2026-03-31	
-dev_start	2026-04-01	
-dev_end	2026-04-10	
-qa_start	2026-04-11	
-qa_end	2026-04-16	
-del_start	2026-04-17	
-del_end	2026-04-20	
-Before I Build
-Three quick answers:
-
-Separate sheet -- confirmed, or do you want it in the Hot Sheet anyway?
-Phase dates -- do you want to fill those in now, or start with auto-calculate and add actuals over time?
-Do you have the Hot Sheet published to the web already (you were in that dialog earlier) -- if so, I can use the same sheet as a template for the new one
-Let's do the same sheet. 
-
-https://docs.google.com/spreadsheets/d/e/2PACX-1vTo-MtduMWurA3OF68mLkmoDcA2jfn2TyXgohcOs-8I9FUikDv6tgD9_fC0SHSj5S_HzsOwiCUsKsvH/pubhtml
-
-Let's go ahead and have you pre-populate those now
-
-11:55 AM
-
-Architected comprehensive dashboard integrating Google Sheets data visualization
-Architected comprehensive dashboard integrating Google Sheets data visualization
-Both files ready. Here's exactly what to do:
-
-Step 1 — Set up the Sheet tab
-Open your Hot Sheet
-Click the + at the bottom left to add a new tab
-Name it Master Timeline
-Open master-timeline-data.csv (above) and copy everything
-Click cell A1 in the new tab and paste
-Step 2 — Get the tab's gid
-Click the Master Timeline tab
-Look at the browser URL -- find #gid= followed by a number
-Copy that number (example: 1890447304)
-Step 3 — Update index.html
-Open your tvw-timeline repo on GitHub
-Click index.html → pencil icon to edit
-Find this line near the top: const TAB_GID = 'GID_HERE';
-Replace GID_HERE with your number
-Commit
-What's new in this version
-Pulls live from Google Sheets -- edit the sheet, timeline updates in ~60 seconds
-Status column -- active / on hold / complete with visual treatments (hatching, muted + strikethrough)
-Priority column -- high shows a red dot in the sidebar
-Notes column -- shows in the tooltip in red when filled in
-show column -- set to no to hide a project without deleting the row
-Editable phase dates -- fill in the phase columns to override auto-calculation
-Auto-refresh every 5 minutes -- live sync indicator in the top bar
-Quarter bands -- Q1/Q2/Q3/Q4 shading across the full chart
-Master timeline data
-Table · CSV 
-Index
-Code · HTML 
-So the old index.html isn't pulling from Hot Sheet's Master Timeline data correct?
-
-12:11 PM
-
-Clarified data source discrepancy between old and new versions
-Clarified data source discrepancy between old and new versions
-Correct. The old one has all the data hardcoded in the JavaScript. It's not connected to anything.
-
-The new index.html we just built is the one that pulls from Google Sheets -- but it's sitting on your computer, not on GitHub yet.
-
-You need to replace the file on GitHub:
-
-Go to your tvw-timeline repo on GitHub
-Click index.html
-Click the pencil icon to edit
-Select all the text and delete it
-Open the new index.html from above, copy everything
-Paste it into the GitHub editor
-Commit
-Then follow the three setup steps I just outlined (create the tab, get the gid, drop it into the file).
-
-Once that's done, the timeline is live and sheet-connected.
-
-Okay. So now I have the attached screenshots. One has the gid. The other shows the updated index file. Where do I place the Gid Here
-
-12:15 PM
-
-Pinpointed GID location and prescribed replacement procedure
-Pinpointed GID location and prescribed replacement procedure
-Your gid is 560500421 -- I can see it in the URL bar of the Hot Sheet screenshot.
-
-Here's exactly what to do:
-
-In GitHub, click the pencil icon on index.html to edit
-Hit Cmd+F to search for GID_HERE
-Replace it so the line reads:
-const TAB_GID = '560500421';
-Commit the change
-That's it. The timeline will pull from your Master Timeline tab automatically.
-
-Here's the gid: 560500421. Can you actually update the index.html?
-
-12:17 PM
-
-Identified task to substitute placeholder with provided identifier
-Identified task to substitute placeholder with provided identifier
-Done. GID is baked in. Now just replace the file on GitHub:
-
-Go to your repo → click index.html → pencil icon
-Select all → delete → paste the new file contents
-Commit
-Once that's live, the timeline will pull directly from your Master Timeline tab in the Hot Sheet.
-
-Index
-Code · HTML 
-
-
-
-
-
-
-Claude is AI and can make mistakes. Please double-check responses.
-Index · HTML
-Copy
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -787,20 +97,20 @@ Copy
   </div>
   <div id="tooltip"></div>
 </div>
- 
+
 <script>
 // ── CONFIG ───────────────────────────────────────────────────
 // After creating your "Master Timeline" tab in the Hot Sheet:
 // 1. Click that tab — look at the URL for #gid=XXXXXXXXXX
 // 2. Replace GID_HERE below with that number
 // 3. Commit the change to GitHub
- 
+
 const PUBLISHED_SHEET_ID = '2PACX-1vTo-MtduMWurA3OF68mLkmoDcA2jfn2TyXgohcOs-8I9FUikDv6tgD9_fC0SHSj5S_HzsOwiCUsKsvH';
 const TAB_GID            = '560500421';
 const AUTO_REFRESH_MIN   = 5;
- 
+
 const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_SHEET_ID}/pub?gid=${TAB_GID}&single=true&output=csv`;
- 
+
 // ── CONSTANTS ────────────────────────────────────────────────
 const SIDEBAR_W = 234, ROW_H = 54, GROUP_H = 38, MONTH_H = 38, CHART_W = 1570, BAR_PAD = 9;
 const YEAR_START = new Date('2026-01-01T00:00:00');
@@ -811,18 +121,18 @@ const GROUPS     = ['Leidos', 'Husky', 'TVW Network'];
 const PHASE_NAMES   = ['Discovery', 'Design', 'Development', 'QA', 'Delivery'];
 const PHASE_WEIGHTS = [0.15, 0.20, 0.40, 0.15, 0.10];
 const PHASE_COLS    = [['disc_start','disc_end'],['design_start','design_end'],['dev_start','dev_end'],['qa_start','qa_end'],['del_start','del_end']];
- 
+
 const G = {
   'Leidos':      { phases:['#bfdbfe','#93c5fd','#60a5fa','#2563eb','#1d4ed8'], base:'#2563eb', headerBg:'#eff6ff', headerText:'#1e3a8a', accent:'#2563eb' },
   'Husky':       { phases:['#a7f3d0','#6ee7b7','#34d399','#059669','#047857'], base:'#059669', headerBg:'#ecfdf5', headerText:'#064e3b', accent:'#059669' },
   'TVW Network': { phases:['#ddd6fe','#c4b5fd','#a78bfa','#7c3aed','#6d28d9'], base:'#7c3aed', headerBg:'#f5f3ff', headerText:'#4c1d95', accent:'#7c3aed' }
 };
- 
+
 // ── HELPERS ──────────────────────────────────────────────────
 const parseDate = s => s && s.trim() ? new Date(s.trim() + 'T00:00:00') : null;
 const fmtDate   = d => d ? d3.timeFormat('%b %d')(d) : '';
 const trunc     = (s, n) => s && s.length > n ? s.slice(0, n-1) + '...' : (s || '');
- 
+
 function autoPhases(startDate, endDate) {
   const start = parseDate(startDate), end = parseDate(endDate);
   if (!start || !end) return [];
@@ -836,7 +146,7 @@ function autoPhases(startDate, endDate) {
   });
   return phases;
 }
- 
+
 function getPhases(project) {
   const hasPhases = PHASE_COLS.every(([s, e]) => project[s] && project[e] && project[s].trim() && project[e].trim());
   if (hasPhases) {
@@ -844,16 +154,16 @@ function getPhases(project) {
   }
   return autoPhases(project.startDate, project.endDate);
 }
- 
+
 // ── DATA LOADING ─────────────────────────────────────────────
 let projectData = [], activeFilter = 'All', refreshTimer = null;
- 
+
 function setSyncStatus(state, text) {
   const dot = document.getElementById('sync-dot');
   dot.className = state;
   document.getElementById('sync-time').textContent = text;
 }
- 
+
 async function loadData() {
   setSyncStatus('', 'Refreshing...');
   if (TAB_GID === 'GID_HERE') {
@@ -897,14 +207,14 @@ async function loadData() {
   if (refreshTimer) clearTimeout(refreshTimer);
   refreshTimer = setTimeout(loadData, AUTO_REFRESH_MIN * 60 * 1000);
 }
- 
+
 function showError(html) {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('gantt-svg').style.display = 'none';
   const el = document.getElementById('error-msg');
   el.style.display = 'block'; el.innerHTML = html;
 }
- 
+
 // ── LAYOUT ───────────────────────────────────────────────────
 function buildLayout(data, filter) {
   let y = 0, projIdx = 0; const rows = [];
@@ -917,7 +227,7 @@ function buildLayout(data, filter) {
   });
   return { rows, totalHeight: y };
 }
- 
+
 // ── RENDER ───────────────────────────────────────────────────
 function render(data, filter) {
   const { rows, totalHeight } = buildLayout(data, filter);
@@ -925,13 +235,13 @@ function render(data, filter) {
   const svg = d3.select('#gantt-svg').attr('width', totalW).attr('height', totalH);
   svg.selectAll('*').remove();
   const defs = svg.append('defs');
- 
+
   // Hatch pattern for on-hold
   const pat = defs.append('pattern').attr('id','hatch').attr('patternUnits','userSpaceOnUse').attr('width',8).attr('height',8).attr('patternTransform','rotate(45)');
   pat.append('line').attr('x1',0).attr('x2',0).attr('y1',0).attr('y2',8).attr('stroke','rgba(0,0,0,0.15)').attr('stroke-width',3);
- 
+
   svg.append('rect').attr('width',totalW).attr('height',totalH).attr('fill','#fff');
- 
+
   // Quarter bands
   [['Q1','2026-01-01','2026-04-01','#f8fafc'],['Q2','2026-04-01','2026-07-01','#f1f5f9'],['Q3','2026-07-01','2026-10-01','#f8fafc'],['Q4','2026-10-01','2027-01-01','#f1f5f9']].forEach(([label, s, e, fill]) => {
     const sd = new Date(s), ed = new Date(e);
@@ -939,15 +249,15 @@ function render(data, filter) {
     svg.append('rect').attr('x',qx).attr('y',MONTH_H).attr('width',qw).attr('height',totalH-MONTH_H).attr('fill',fill);
     svg.append('text').attr('x',qx+qw/2).attr('y',MONTH_H+11).attr('text-anchor','middle').attr('font-size','9px').attr('font-weight','700').attr('fill','#cbd5e1').attr('letter-spacing','1px').text(label);
   });
- 
+
   // Sidebar bg + border
   svg.append('rect').attr('width',SIDEBAR_W).attr('height',totalH).attr('fill','#f8fafc');
   svg.append('line').attr('x1',SIDEBAR_W).attr('x2',SIDEBAR_W).attr('y1',0).attr('y2',totalH).attr('stroke','#e2e8f0').attr('stroke-width',1);
- 
+
   // Header bar
   svg.append('rect').attr('width',totalW).attr('height',MONTH_H).attr('fill','#0f172a');
   svg.append('text').attr('x',14).attr('y',MONTH_H/2).attr('dy','0.35em').attr('font-size','10px').attr('font-weight','700').attr('fill','#475569').attr('letter-spacing','0.8px').text('PROJECT');
- 
+
   // Month columns
   const monthW = CHART_W / 12;
   d3.timeMonths(YEAR_START, YEAR_END).forEach(month => {
@@ -956,20 +266,20 @@ function render(data, filter) {
     svg.append('text').attr('x',x+monthW/2).attr('y',MONTH_H/2).attr('dy','0.35em').attr('text-anchor','middle').attr('font-size','11px').attr('font-weight','600').attr('fill','#94a3b8').text(d3.timeFormat('%b')(month));
   });
   svg.append('line').attr('x1',totalW-1).attr('x2',totalW-1).attr('y1',MONTH_H).attr('y2',totalH).attr('stroke','#e2e8f0').attr('stroke-width',1);
- 
+
   rows.forEach(row => {
     const absY = MONTH_H + row.y;
     if (row.type === 'group') drawGroupHeader(svg, row.group, absY, totalW);
     else drawProjectRow(svg, row.project, row.group, absY, row.projIdx, defs);
   });
- 
+
   // Today line — always on top
   const todayX = SIDEBAR_W + xScale(TODAY);
   svg.append('rect').attr('x',todayX-24).attr('y',0).attr('width',48).attr('height',MONTH_H).attr('fill','#dc2626').attr('opacity',0.12);
   svg.append('text').attr('x',todayX).attr('y',MONTH_H/2).attr('dy','0.35em').attr('text-anchor','middle').attr('font-size','9px').attr('font-weight','800').attr('fill','#fca5a5').attr('letter-spacing','0.5px').text('TODAY');
   svg.append('line').attr('x1',todayX).attr('x2',todayX).attr('y1',MONTH_H).attr('y2',totalH).attr('stroke','#dc2626').attr('stroke-width',1.5).attr('stroke-dasharray','5,3').attr('opacity',0.65);
 }
- 
+
 // ── GROUP HEADER ─────────────────────────────────────────────
 function drawGroupHeader(svg, group, absY, totalW) {
   const c = G[group];
@@ -979,7 +289,7 @@ function drawGroupHeader(svg, group, absY, totalW) {
   svg.append('line').attr('x1',0).attr('x2',totalW).attr('y1',absY+GROUP_H).attr('y2',absY+GROUP_H).attr('stroke',c.accent).attr('stroke-width',0.5).attr('opacity',0.4);
   svg.append('text').attr('x',16).attr('y',absY+GROUP_H/2).attr('dy','0.35em').attr('font-size','11px').attr('font-weight','800').attr('fill',c.headerText).attr('letter-spacing','0.5px').text(group.toUpperCase());
 }
- 
+
 // ── PROJECT ROW ──────────────────────────────────────────────
 function drawProjectRow(svg, project, group, absY, projIdx, defs) {
   const c = G[group], totalW = SIDEBAR_W + CHART_W;
@@ -987,27 +297,27 @@ function drawProjectRow(svg, project, group, absY, projIdx, defs) {
   const priority = (project.priority || 'normal').toLowerCase().trim();
   const isHold   = status === 'on-hold';
   const isDone   = status === 'complete';
- 
+
   if (projIdx % 2 === 0) svg.append('rect').attr('x',0).attr('y',absY).attr('width',totalW).attr('height',ROW_H).attr('fill','#f8fafc').attr('opacity',0.6);
   svg.append('line').attr('x1',0).attr('x2',totalW).attr('y1',absY+ROW_H).attr('y2',absY+ROW_H).attr('stroke','#e2e8f0').attr('stroke-width',0.5);
- 
+
   // Priority dot
   if (priority === 'high') svg.append('circle').attr('cx',8).attr('cy',absY+16).attr('r',3.5).attr('fill','#dc2626');
- 
+
   // Labels
   svg.append('text').attr('x',14).attr('y',absY+17).attr('dy','0.35em').attr('font-size','11px').attr('font-weight','600').attr('fill',isDone?'#94a3b8':'#0f172a').attr('text-decoration',isDone?'line-through':'none').text(trunc(project.name,27));
   svg.append('text').attr('x',14).attr('y',absY+36).attr('dy','0.35em').attr('font-size','10px').attr('fill','#94a3b8').text('PM: '+trunc(project.pm,22));
- 
+
   const startD = parseDate(project.startDate), endD = parseDate(project.endDate);
   if (!startD || !endD) return;
   const barX = SIDEBAR_W + xScale(startD), barW = Math.max(xScale(endD)-xScale(startD),2);
   const barY = absY + BAR_PAD, barH = ROW_H - BAR_PAD*2;
- 
+
   const clipId = 'cp_' + project.id.replace(/[^a-z0-9]/gi,'_');
   defs.append('clipPath').attr('id',clipId).append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH).attr('rx',5).attr('ry',5);
- 
+
   const phaseGrp = svg.append('g').attr('clip-path',`url(#${clipId})`);
- 
+
   if (isDone) {
     phaseGrp.append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH).attr('fill','#e2e8f0');
     // Checkmark text
@@ -1029,7 +339,7 @@ function drawProjectRow(svg, project, group, absY, projIdx, defs) {
     });
     if (barW > 36) svg.append('text').attr('x',barX+7).attr('y',absY+ROW_H/2).attr('dy','0.35em').attr('font-size','9.5px').attr('font-weight','700').attr('fill','rgba(255,255,255,0.85)').attr('pointer-events','none').text(project.id);
   }
- 
+
   // Show date diamond
   if (project.showDate && project.showDate.trim()) {
     const sdD = parseDate(project.showDate);
@@ -1038,11 +348,11 @@ function drawProjectRow(svg, project, group, absY, projIdx, defs) {
       svg.append('polygon').attr('points',`${sdX},${sdY-ds} ${sdX+ds},${sdY} ${sdX},${sdY+ds} ${sdX-ds},${sdY}`).attr('fill','#dc2626').attr('stroke','#fff').attr('stroke-width',1.5).attr('pointer-events','none');
     }
   }
- 
+
   // Tooltip
   const tooltip = d3.select('#tooltip');
   const hitRect = svg.append('rect').attr('x',barX).attr('y',absY).attr('width',barW).attr('height',ROW_H).attr('fill','transparent').attr('cursor','crosshair');
- 
+
   hitRect.on('mouseenter', () => {
     svg.append('rect').attr('class','hover-ring').attr('x',barX-1).attr('y',barY-1).attr('width',barW+2).attr('height',barH+2).attr('fill','none').attr('stroke',isDone?'#94a3b8':c.base).attr('stroke-width',2).attr('rx',6).attr('pointer-events','none').attr('opacity',0.85);
   });
@@ -1054,7 +364,7 @@ function drawProjectRow(svg, project, group, absY, projIdx, defs) {
     const cdLine   = project.cd && project.cd.trim() ? ` &middot; CD: ${project.cd}` : '';
     const notesLine = project.notes && project.notes.trim() ? `<div class="tt-notes">Note: ${project.notes}</div>` : '';
     const statusDisplay = status.replace('-',' ');
- 
+
     tooltip.style('display','block').style('left',(event.clientX+16)+'px').style('top',(event.clientY-12)+'px')
       .html(`<div class="tt-header"><span class="tt-id">${project.id}</span><span class="tt-name">${project.name}</span></div>
         <div class="tt-meta">${project.type} &middot; ${project.location}</div>
@@ -1064,12 +374,12 @@ function drawProjectRow(svg, project, group, absY, projIdx, defs) {
         <div class="tt-phases">${phaseRows}</div>
         ${project.brief?`<div class="tt-brief">${project.brief}</div>`:''}
         ${notesLine}`);
- 
+
     const ttRect = document.getElementById('tooltip').getBoundingClientRect();
     if (ttRect.right > window.innerWidth-10) tooltip.style('left',(event.clientX-ttRect.width-16)+'px');
   });
 }
- 
+
 // ── FILTERS ──────────────────────────────────────────────────
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1079,11 +389,10 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     if (projectData.length > 0) render(projectData, activeFilter);
   });
 });
- 
+
 // ── INIT ─────────────────────────────────────────────────────
 document.getElementById('today-str').textContent = d3.timeFormat('%B %d, %Y')(TODAY);
 loadData();
 </script>
 </body>
 </html>
- 
